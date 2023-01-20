@@ -75,6 +75,10 @@ func (a *App) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 		for nesting := d.Nesting(); d.NextBlock(nesting); {
 			switch d.Val() {
+			case "nkeyCredentialFile":
+				if !d.AllArgs(&a.NatsNkeyCredentialFile) {
+					return d.ArgErr()
+				}
 
 			case "subscribe":
 				s, err := parseSubscribeHandler(d)
