@@ -18,8 +18,9 @@ func init() {
 // NATS is a simple, secure and performant communications system for digital
 // systems, services and devices.
 type App struct {
-	NatsUrl     string            `json:"url,omitempty"`
-	HandlersRaw []json.RawMessage `json:"handle,omitempty" caddy:"namespace=nats.handlers inline_key=handler"`
+	NatsUrl                string            `json:"url,omitempty"`
+	NatsNkeyCredentialFile string            `json:"nkeyCredentialFile,omitempty"`
+	HandlersRaw            []json.RawMessage `json:"handle,omitempty" caddy:"namespace=nats.handlers inline_key=handler"`
 
 	// Decoded values
 	Handlers []Handler `json:"-"`
@@ -60,8 +61,18 @@ func (app *App) Provision(ctx caddy.Context) error {
 
 func (app *App) Start() error {
 	// Connect to the NATS server
-	app.logger.Info("connecting via NATS context", zap.String("natsUrl", app.NatsUrl))
-	conn, err := nats.Connect(app.NatsUrl)
+	app.logger.Info("connecting via NATS URL: ", zap.String("natsUrl", app.NatsUrl))
+	var conn *nats.Conn
+	var err error
+	if len(app.NatsNkeyCredentialFile) > 0 {
+		nkeyOption, err := nats.NkeyOptionFromSeed(app.NatsNkeyCredentialFile)
+		if err != nil {
+			return fmt.Errorf("could not load NKey from %s: %w", app.NatsNkeyCredentialFile, err)
+		}
+		conn, err = nats.Connect(app.NatsUrl, nkeyOption)
+	} else {
+		conn, err = nats.Connect(app.NatsUrl)
+	}
 	if err != nil {
 		return err
 	}
