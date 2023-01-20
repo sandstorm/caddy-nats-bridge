@@ -6,7 +6,6 @@ import (
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
-	"github.com/nats-io/jsm.go/natscontext"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
@@ -20,8 +19,9 @@ func init() {
 // NATS is a simple, secure and performant communications system for digital
 // systems, services and devices.
 type App struct {
-	Context     string            `json:"context,omitempty"`
-	HandlersRaw []json.RawMessage `json:"handle,omitempty" caddy:"namespace=nats.handlers inline_key=handler"`
+	NatsUrl                string            `json:"url,omitempty"`
+	NatsNkeyCredentialFile string            `json:"nkeyCredentialFile,omitempty"`
+	HandlersRaw            []json.RawMessage `json:"handle,omitempty" caddy:"namespace=nats.handlers inline_key=handler"`
 
 	// Decoded values
 	Handlers []Handler `json:"-"`
@@ -62,8 +62,18 @@ func (app *App) Provision(ctx caddy.Context) error {
 
 func (app *App) Start() error {
 	// Connect to the NATS server
-	app.logger.Info("connecting via NATS context", zap.String("context", app.Context))
-	conn, err := natscontext.Connect(app.Context)
+	app.logger.Info("connecting via NATS URL: ", zap.String("natsUrl", app.NatsUrl))
+	var conn *nats.Conn
+	var err error
+	if len(app.NatsNkeyCredentialFile) > 0 {
+		nkeyOption, err := nats.NkeyOptionFromSeed(app.NatsNkeyCredentialFile)
+		if err != nil {
+			return fmt.Errorf("could not load NKey from %s: %w", app.NatsNkeyCredentialFile, err)
+		}
+		conn, err = nats.Connect(app.NatsUrl, nkeyOption)
+	} else {
+		conn, err = nats.Connect(app.NatsUrl)
+	}
 	if err != nil {
 		return err
 	}
