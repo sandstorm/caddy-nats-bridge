@@ -64,10 +64,10 @@ func parseQueueSubscribeHandler(d *caddyfile.Dispenser) (Subscribe, error) {
 	return s, nil
 }
 
-func (a *App) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+func (app *App) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		if d.NextArg() {
-			a.Context = d.Val()
+			app.NatsUrl = d.Val()
 		}
 		if d.NextArg() {
 			return d.ArgErr()
@@ -75,8 +75,20 @@ func (a *App) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 		for nesting := d.Nesting(); d.NextBlock(nesting); {
 			switch d.Val() {
+			case "userCredentialFile":
+				if !d.AllArgs(&app.UserCredentialFile) {
+					return d.ArgErr()
+				}
 			case "nkeyCredentialFile":
-				if !d.AllArgs(&a.NatsNkeyCredentialFile) {
+				if !d.AllArgs(&app.NkeyCredentialFile) {
+					return d.ArgErr()
+				}
+			case "clientName":
+				if !d.AllArgs(&app.ClientName) {
+					return d.ArgErr()
+				}
+			case "inboxPrefix":
+				if !d.AllArgs(&app.InboxPrefix) {
 					return d.ArgErr()
 				}
 
@@ -86,7 +98,7 @@ func (a *App) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return err
 				}
 				jsonHandler := caddyconfig.JSONModuleObject(s, "handler", s.CaddyModule().ID.Name(), nil)
-				a.HandlersRaw = append(a.HandlersRaw, jsonHandler)
+				app.HandlersRaw = append(app.HandlersRaw, jsonHandler)
 
 			case "reply":
 				s, err := parseSubscribeHandler(d)
@@ -95,7 +107,7 @@ func (a *App) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return err
 				}
 				jsonHandler := caddyconfig.JSONModuleObject(s, "handler", s.CaddyModule().ID.Name(), nil)
-				a.HandlersRaw = append(a.HandlersRaw, jsonHandler)
+				app.HandlersRaw = append(app.HandlersRaw, jsonHandler)
 
 			case "queue_subscribe":
 				s, err := parseQueueSubscribeHandler(d)
@@ -103,7 +115,7 @@ func (a *App) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return err
 				}
 				jsonHandler := caddyconfig.JSONModuleObject(s, "handler", s.CaddyModule().ID.Name(), nil)
-				a.HandlersRaw = append(a.HandlersRaw, jsonHandler)
+				app.HandlersRaw = append(app.HandlersRaw, jsonHandler)
 
 			case "queue_reply":
 				s, err := parseQueueSubscribeHandler(d)
@@ -112,7 +124,7 @@ func (a *App) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return err
 				}
 				jsonHandler := caddyconfig.JSONModuleObject(s, "handler", s.CaddyModule().ID.Name(), nil)
-				a.HandlersRaw = append(a.HandlersRaw, jsonHandler)
+				app.HandlersRaw = append(app.HandlersRaw, jsonHandler)
 
 			default:
 				return d.Errf("unrecognized subdirective: %s", d.Val())

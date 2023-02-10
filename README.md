@@ -52,29 +52,26 @@ nats req hello ""
 
 ## Connecting to NATS
 
-To connect to `nats`, simply use the `nats` global option in your Caddyfile:
+To connect to `nats`, simply use the `nats` global option in your Caddyfile with the URL of the NATS server.:
 
 ```nginx
 {
-  nats
+  nats <url> 
 }
 ```
 
-This will connect to the currently selected `nats` context that the `nats` CLI
-uses. If there is no `nats` context available, it will connect to the default
-`nats` server URL.
-
-You can view your `nats` context information via the `nats` cli:
-
-```sh
-nats context list
-```
-
-We recommend connecting to a specific context:
+On top, the following options are supported:
 
 ```nginx
 {
-  nats <context>
+  nats <url> {
+    # either userCredentialFile or nkeyCredentialFile can be specified. If both are specified, userCredentialFile
+    # takes precedence.
+    userCredentialFile /path/to/file.creds
+    nkeyCredentialFile /path/to/file.nk
+    clientName MyClient
+    inboxPrefix _INBOX_custom
+  }
 }
 ```
 
