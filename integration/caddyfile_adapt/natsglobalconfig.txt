@@ -1,6 +1,9 @@
 {
 	nats 127.0.0.1:4222 {
+        userCredentialFile /my/file/here2
         nkeyCredentialFile /my/file/here
+        clientName foo
+        inboxPrefix _INBOX_nvfeiuwjsdioc
 	}
 }
 ----------
@@ -8,7 +11,10 @@
 	"apps": {
 		"nats": {
 			"url": "127.0.0.1:4222",
-			"nkeyCredentialFile": "/my/file/here"
+			"userCredentialFile": "/my/file/here2",
+			"nkeyCredentialFile": "/my/file/here",
+			"clientName": "foo",
+			"inboxPrefix": "_INBOX_nvfeiuwjsdioc"
 		}
 	}
 }

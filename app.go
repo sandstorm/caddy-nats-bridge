@@ -18,9 +18,12 @@ func init() {
 // NATS is a simple, secure and performant communications system for digital
 // systems, services and devices.
 type App struct {
-	NatsUrl                string            `json:"url,omitempty"`
-	NatsNkeyCredentialFile string            `json:"nkeyCredentialFile,omitempty"`
-	HandlersRaw            []json.RawMessage `json:"handle,omitempty" caddy:"namespace=nats.handlers inline_key=handler"`
+	NatsUrl            string            `json:"url,omitempty"`
+	UserCredentialFile string            `json:"userCredentialFile,omitempty"`
+	NkeyCredentialFile string            `json:"nkeyCredentialFile,omitempty"`
+	ClientName         string            `json:"clientName,omitempty"`
+	InboxPrefix        string            `json:"inboxPrefix,omitempty"`
+	HandlersRaw        []json.RawMessage `json:"handle,omitempty" caddy:"namespace=nats.handlers inline_key=handler"`
 
 	// Decoded values
 	Handlers []Handler `json:"-"`
@@ -31,7 +34,7 @@ type App struct {
 }
 
 // CaddyModule returns the Caddy module information.
-func (App) CaddyModule() caddy.ModuleInfo {
+func (app App) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "nats",
 		New: func() caddy.Module { return new(App) },
@@ -64,17 +67,30 @@ func (app *App) Start() error {
 	app.logger.Info("connecting via NATS URL: ", zap.String("natsUrl", app.NatsUrl))
 	var conn *nats.Conn
 	var err error
-	if len(app.NatsNkeyCredentialFile) > 0 {
-		nkeyOption, err := nats.NkeyOptionFromSeed(app.NatsNkeyCredentialFile)
-		if err != nil {
-			return fmt.Errorf("could not load NKey from %s: %w", app.NatsNkeyCredentialFile, err)
-		}
-		conn, err = nats.Connect(app.NatsUrl, nkeyOption)
-	} else {
-		conn, err = nats.Connect(app.NatsUrl)
+	var opts []nats.Option
+	if app.ClientName != "" {
+		opts = append(opts, nats.Name(app.ClientName))
 	}
+	if app.InboxPrefix != "" {
+		opts = append(opts, nats.CustomInboxPrefix(app.InboxPrefix))
+	}
+
+	if app.UserCredentialFile != "" {
+		// JWT
+		opts = append(opts, nats.UserCredentials(app.UserCredentialFile))
+	} else if app.NkeyCredentialFile != "" {
+		// NKEY
+		opt, err := nats.NkeyOptionFromSeed(app.NkeyCredentialFile)
+		if err != nil {
+			return fmt.Errorf("could not load NKey from %s: %w", app.NkeyCredentialFile, err)
+		}
+		opts = append(opts, opt)
+	}
+
+	conn, err = nats.Connect(app.NatsUrl, opts...)
+
 	if err != nil {
-		return err
+		return fmt.Errorf("could not connect to %s : %w", app.NatsUrl, err)
 	}
 
 	app.logger.Info("connected to NATS server", zap.String("url", conn.ConnectedUrlRedacted()))
