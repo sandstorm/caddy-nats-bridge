@@ -11,40 +11,50 @@ import (
 )
 
 func init() {
-	caddy.RegisterModule(App{})
+	caddy.RegisterModule(NatsBridgeApp{})
 }
 
-// App connects caddy to a NATS server.
+// NatsBridgeApp connects caddy to a NATS server.
 //
 // NATS is a simple, secure and performant communications system for digital
 // systems, services and devices.
-type App struct {
-	NatsUrl            string            `json:"url,omitempty"`
-	UserCredentialFile string            `json:"userCredentialFile,omitempty"`
-	NkeyCredentialFile string            `json:"nkeyCredentialFile,omitempty"`
-	ClientName         string            `json:"clientName,omitempty"`
-	InboxPrefix        string            `json:"inboxPrefix,omitempty"`
-	HandlersRaw        []json.RawMessage `json:"handle,omitempty" caddy:"namespace=nats.handlers inline_key=handler"`
+type NatsBridgeApp struct {
+	Servers     map[string]*NatsServer `json:"servers,omitempty"`
+	HandlersRaw []json.RawMessage      `json:"handle,omitempty" caddy:"namespace=nats.handlers inline_key=handler"`
 
 	// Decoded values
 	Handlers []Handler `json:"-"`
 
-	conn   *nats.Conn
 	logger *zap.Logger
 	ctx    caddy.Context
 }
 
+type NatsServer struct {
+	// can also contain comma-separated list of URLs, see nats.Connect
+	NatsUrl            string `json:"url,omitempty"`
+	UserCredentialFile string `json:"userCredentialFile,omitempty"`
+	NkeyCredentialFile string `json:"nkeyCredentialFile,omitempty"`
+	ClientName         string `json:"clientName,omitempty"`
+	InboxPrefix        string `json:"inboxPrefix,omitempty"`
+
+	conn *nats.Conn
+}
+
 // CaddyModule returns the Caddy module information.
-func (app App) CaddyModule() caddy.ModuleInfo {
+func (app NatsBridgeApp) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID:  "nats",
-		New: func() caddy.Module { return new(App) },
+		ID: "nats",
+		New: func() caddy.Module {
+			app := new(NatsBridgeApp)
+			app.Servers = make(map[string]*NatsServer)
+			return app
+		},
 	}
 }
 
 // Provision sets up the app
-func (app *App) Provision(ctx caddy.Context) error {
-	// Set logger and Context
+func (app *NatsBridgeApp) Provision(ctx caddy.Context) error {
+	// Set logger and NatsUrl
 	app.ctx = ctx
 	app.logger = ctx.Logger(app)
 
@@ -63,60 +73,69 @@ func (app *App) Provision(ctx caddy.Context) error {
 	return nil
 }
 
-func (app *App) Start() error {
-	// Connect to the NATS server
-	app.logger.Info("connecting via NATS URL: ", zap.String("natsUrl", app.NatsUrl))
-	var conn *nats.Conn
-	var err error
-	var opts []nats.Option
-	if app.ClientName != "" {
-		opts = append(opts, nats.Name(app.ClientName))
-	}
-	if app.InboxPrefix != "" {
-		opts = append(opts, nats.CustomInboxPrefix(app.InboxPrefix))
-	}
+func (app *NatsBridgeApp) Start() error {
+	for _, server := range app.Servers {
+		// Connect to the NATS server
+		app.logger.Info("connecting via NATS URL: ", zap.String("natsUrl", server.NatsUrl))
 
-	if app.UserCredentialFile != "" {
-		// JWT
-		opts = append(opts, nats.UserCredentials(app.UserCredentialFile))
-	} else if app.NkeyCredentialFile != "" {
-		// NKEY
-		opt, err := nats.NkeyOptionFromSeed(app.NkeyCredentialFile)
-		if err != nil {
-			return fmt.Errorf("could not load NKey from %s: %w", app.NkeyCredentialFile, err)
+		var err error
+		var opts []nats.Option
+
+		if server.ClientName != "" {
+			opts = append(opts, nats.Name(server.ClientName))
 		}
-		opts = append(opts, opt)
-	}
-
-	conn, err = nats.Connect(app.NatsUrl, opts...)
-
-	if err != nil {
-		return fmt.Errorf("could not connect to %s : %w", app.NatsUrl, err)
-	}
-
-	app.logger.Info("connected to NATS server", zap.String("url", conn.ConnectedUrlRedacted()))
-	app.conn = conn
-
-	for _, handler := range app.Handlers {
-		err := handler.Subscribe(conn)
-		if err != nil {
-			return err
+		if server.InboxPrefix != "" {
+			opts = append(opts, nats.CustomInboxPrefix(server.InboxPrefix))
 		}
+
+		if server.UserCredentialFile != "" {
+			// JWT
+			opts = append(opts, nats.UserCredentials(server.UserCredentialFile))
+		} else if server.NkeyCredentialFile != "" {
+			// NKEY
+			opt, err := nats.NkeyOptionFromSeed(server.NkeyCredentialFile)
+			if err != nil {
+				return fmt.Errorf("could not load NKey from %s: %w", server.NkeyCredentialFile, err)
+			}
+			opts = append(opts, opt)
+		}
+
+		server.conn, err = nats.Connect(server.NatsUrl, opts...)
+
+		if err != nil {
+			return fmt.Errorf("could not connect to %s : %w", server.NatsUrl, err)
+		}
+
+		app.logger.Info("connected to NATS server", zap.String("url", server.conn.ConnectedUrlRedacted()))
+
+		// TODO
+		/*for _, handler := range app.Handlers {
+			err := handler.Subscribe(conn)
+			if err != nil {
+				return err
+			}
+		}*/
 	}
 
 	return nil
 }
 
-func (app *App) Stop() error {
-	defer app.conn.Close()
-
-	app.logger.Info("closing NATS connection", zap.String("url", app.conn.ConnectedUrlRedacted()))
-
-	for _, handler := range app.Handlers {
-		err := handler.Unsubscribe(app.conn)
-		if err != nil {
-			return err
+func (app *NatsBridgeApp) Stop() error {
+	defer func() {
+		for _, server := range app.Servers {
+			server.conn.Close()
 		}
+	}()
+
+	for _, server := range app.Servers {
+		app.logger.Info("closing NATS connection", zap.String("url", server.conn.ConnectedUrlRedacted()))
+		// TODO
+		/*for _, handler := range app.Handlers {
+			err := handler.Unsubscribe(app.conn)
+			if err != nil {
+				return err
+			}
+		}*/
 	}
 
 	return nil
@@ -124,7 +143,7 @@ func (app *App) Stop() error {
 
 // Interface guards
 var (
-	_ caddy.App             = (*App)(nil)
-	_ caddy.Provisioner     = (*App)(nil)
-	_ caddyfile.Unmarshaler = (*App)(nil)
+	_ caddy.App             = (*NatsBridgeApp)(nil)
+	_ caddy.Provisioner     = (*NatsBridgeApp)(nil)
+	_ caddyfile.Unmarshaler = (*NatsBridgeApp)(nil)
 )

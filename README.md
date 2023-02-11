@@ -27,6 +27,7 @@ First [install NATS](https://docs.nats.io/running-a-nats-service/introduction/in
 nats-server
 ```
 
+
 Then create your Caddyfile:
 
 ```nginx
@@ -52,19 +53,25 @@ nats req hello ""
 
 ## Connecting to NATS
 
-To connect to `nats`, simply use the `nats` global option in your Caddyfile with the URL of the NATS server.:
+To connect to `nats`, simply use the `nats` global option in your Caddyfile with the URL of the NATS server:
 
 ```nginx
 {
-  nats <url> 
+  nats [alias] {
+    url nats://127.0.0.1:4222
+  } 
 }
 ```
+
+The `alias` is a server-reference which is relevant if you want to connect to two NATS servers at the same time.
+It is 
 
 On top, the following options are supported:
 
 ```nginx
 {
-  nats <url> {
+  nats [alias] {
+    url nats://127.0.0.1:4222
     # either userCredentialFile or nkeyCredentialFile can be specified. If both are specified, userCredentialFile
     # takes precedence.
     userCredentialFile /path/to/file.creds
@@ -74,6 +81,12 @@ On top, the following options are supported:
   }
 }
 ```
+
+## Connectivity Modes
+
+![](./connectivity-modes.drawio.png)
+
+TODO EXPLAIN
 
 ## Subscribing to a NATS subject
 
@@ -108,7 +121,7 @@ Subscribe to an event stream in NATS and call an HTTP endpoint:
 ```nginx
 {
   nats {
-    subscribe events.> POST https://localhost/nats_events/{nats.path.1:}
+      subscribe events.> POST https://localhost/nats_events/{nats.path.1:}
   }
 }
 ```
@@ -250,6 +263,36 @@ localhost {
   }
 }
 ```
+
+#### Format of the NATS message
+
+- HTTP Body = NATS Message Data
+- HTTP Headers = NATS Message Headers
+  - `X-Http-Method` header: contains the HTTP header `GET,POST,HEAD,...`
+- NATS messages have a size limit of usually 1 MB (and 8 MB as hardcoded limit).
+  In case the HTTP body is bigger, or alternatively, is submitted with `Transfer-Encoding: chunked` (so we do not know the size upfront);
+  we do the following:
+  - We store the HTTP body in the [JetStream Object Storage (EXPERIMENTAL)](https://docs.nats.io/using-nats/developer/develop_jetstream/object)
+    for a few minutes; in a random key.
+  - The name of this KV Storage key is stored in the `X-Large-Body-Id`.
+    - TODO: support for response body re-use based on cache etags?
+
+
+## Concept
+
+- HTTP => NATS => HTTP should functionally emit the same requests (and responses)
+- Big Request bodies should be stored to JetStream
+  - for transfer encoding chunked
+- (NATS -> HTTP) Big response bodies should be stored to JetStream
+  - for transfer encoding chunked
+  - for unknown response sizes
+  - TODO: Re-use same cache entries if etags match?
+- TODO: is request / response streaming necessary???
+- All HTTP headers are passed through to NATS without modification
+- All Nats headers except "X-NatsHttp-...." are passed to HTTP without modification
+  - X-NatsHttp-Method
+  - X-NatsHttp-JSBodyId
+- allow multiple NATS servers
 
 ## What's Next?
 While this is currently functional and useful as is, here are the things I'd like to add next:
