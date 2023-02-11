@@ -1,0 +1,21 @@
+{
+	nats {
+		url 127.0.0.1:4222
+	}
+	nats default {
+		clientName foo
+	}
+}
+----------
+{
+	"apps": {
+		"nats": {
+			"servers": {
+				"default": {
+					"url": "127.0.0.1:4222",
+					"clientName": "foo"
+				}
+			}
+		}
+	}
+}

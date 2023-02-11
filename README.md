@@ -27,6 +27,7 @@ First [install NATS](https://docs.nats.io/running-a-nats-service/introduction/in
 nats-server
 ```
 
+
 Then create your Caddyfile:
 
 ```nginx
@@ -52,19 +53,25 @@ nats req hello ""
 
 ## Connecting to NATS
 
-To connect to `nats`, simply use the `nats` global option in your Caddyfile with the URL of the NATS server.:
+To connect to `nats`, simply use the `nats` global option in your Caddyfile with the URL of the NATS server:
 
 ```nginx
 {
-  nats <url> 
+  nats [alias] {
+    url nats://127.0.0.1:4222
+  } 
 }
 ```
+
+The `alias` is a server-reference which is relevant if you want to connect to two NATS servers at the same time.
+It is 
 
 On top, the following options are supported:
 
 ```nginx
 {
-  nats <url> {
+  nats [alias] {
+    url nats://127.0.0.1:4222
     # either userCredentialFile or nkeyCredentialFile can be specified. If both are specified, userCredentialFile
     # takes precedence.
     userCredentialFile /path/to/file.creds
@@ -74,6 +81,12 @@ On top, the following options are supported:
   }
 }
 ```
+
+## Connectivity Modes
+
+![](./connectivity-modes.drawio.png)
+
+TODO EXPLAIN
 
 ## Subscribing to a NATS subject
 
@@ -108,7 +121,7 @@ Subscribe to an event stream in NATS and call an HTTP endpoint:
 ```nginx
 {
   nats {
-    subscribe events.> POST https://localhost/nats_events/{nats.path.1:}
+      subscribe events.> POST https://localhost/nats_events/{nats.path.1:}
   }
 }
 ```
@@ -281,6 +294,7 @@ localhost {
 - All Nats headers except "X-NatsHttp-...." are passed to HTTP without modification
   - X-NatsHttp-Method
   - X-NatsHttp-JSBodyId
+- allow multiple NATS servers
 
 ## What's Next?
 While this is currently functional and useful as is, here are the things I'd like to add next:

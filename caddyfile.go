@@ -1,22 +1,35 @@
 package caddynats
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/caddyserver/caddy/v2/caddyconfig"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
-	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
 
 func init() {
-	httpcaddyfile.RegisterGlobalOption("nats", parseApp)
-	httpcaddyfile.RegisterHandlerDirective("nats_publish", parsePublishHandler)
-	httpcaddyfile.RegisterHandlerDirective("nats_request", parseRequestHandler)
+	httpcaddyfile.RegisterGlobalOption("nats", parseGobalNatsOption)
+	//httpcaddyfile.RegisterHandlerDirective("nats_publish", parsePublishHandler)
+	//httpcaddyfile.RegisterHandlerDirective("nats_request", parseRequestHandler)
 }
 
-func parseApp(d *caddyfile.Dispenser, _ interface{}) (interface{}, error) {
-	app := new(App)
+func parseGobalNatsOption(d *caddyfile.Dispenser, existingVal interface{}) (interface{}, error) {
+	app := new(NatsBridgeApp)
+	app.Servers = make(map[string]*NatsServer)
+
+	if existingVal != nil {
+		var ok bool
+		caddyFileApp, ok := existingVal.(httpcaddyfile.App)
+		if !ok {
+			return nil, d.Errf("existing nats values of unexpected type: %T", existingVal)
+		}
+		err := json.Unmarshal(caddyFileApp.Value, app)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	err := app.UnmarshalCaddyfile(d)
 
@@ -26,7 +39,7 @@ func parseApp(d *caddyfile.Dispenser, _ interface{}) (interface{}, error) {
 	}, err
 }
 
-func parsePublishHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
+/*func parsePublishHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
 	var p = Publish{
 		WithReply: false,
 		Timeout:   publishDefaultTimeout,
@@ -52,7 +65,7 @@ func parseSubscribeHandler(d *caddyfile.Dispenser) (Subscribe, error) {
 	}
 
 	return s, nil
-}
+}*/
 
 func parseQueueSubscribeHandler(d *caddyfile.Dispenser) (Subscribe, error) {
 	s := Subscribe{}
@@ -64,10 +77,17 @@ func parseQueueSubscribeHandler(d *caddyfile.Dispenser) (Subscribe, error) {
 	return s, nil
 }
 
-func (app *App) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+func (app *NatsBridgeApp) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
+		// parse the server alias and fall back to "default"
+		serverAlias := "default"
 		if d.NextArg() {
-			app.NatsUrl = d.Val()
+			serverAlias = d.Val()
+		}
+		server, ok := app.Servers[serverAlias]
+		if ok == false {
+			server = &NatsServer{}
+			app.Servers[serverAlias] = server
 		}
 		if d.NextArg() {
 			return d.ArgErr()
@@ -75,24 +95,28 @@ func (app *App) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 		for nesting := d.Nesting(); d.NextBlock(nesting); {
 			switch d.Val() {
+			case "url":
+				if !d.AllArgs(&server.NatsUrl) {
+					return d.ArgErr()
+				}
 			case "userCredentialFile":
-				if !d.AllArgs(&app.UserCredentialFile) {
+				if !d.AllArgs(&server.UserCredentialFile) {
 					return d.ArgErr()
 				}
 			case "nkeyCredentialFile":
-				if !d.AllArgs(&app.NkeyCredentialFile) {
+				if !d.AllArgs(&server.NkeyCredentialFile) {
 					return d.ArgErr()
 				}
 			case "clientName":
-				if !d.AllArgs(&app.ClientName) {
+				if !d.AllArgs(&server.ClientName) {
 					return d.ArgErr()
 				}
 			case "inboxPrefix":
-				if !d.AllArgs(&app.InboxPrefix) {
+				if !d.AllArgs(&server.InboxPrefix) {
 					return d.ArgErr()
 				}
 
-			case "subscribe":
+			/*case "subscribe":
 				s, err := parseSubscribeHandler(d)
 				if err != nil {
 					return err
@@ -124,7 +148,7 @@ func (app *App) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return err
 				}
 				jsonHandler := caddyconfig.JSONModuleObject(s, "handler", s.CaddyModule().ID.Name(), nil)
-				app.HandlersRaw = append(app.HandlersRaw, jsonHandler)
+				app.HandlersRaw = append(app.HandlersRaw, jsonHandler)*/
 
 			default:
 				return d.Errf("unrecognized subdirective: %s", d.Val())
