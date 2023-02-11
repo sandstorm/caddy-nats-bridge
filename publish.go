@@ -1,13 +1,17 @@
 package caddynats
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nuid"
 	"go.uber.org/zap"
+	"io"
 	"net/http"
+	"time"
 )
 
 const publishDefaultTimeout = 10000
@@ -19,7 +23,7 @@ func init() {
 type Publish struct {
 	Subject string `json:"subject,omitempty"`
 	// TODO WithReply   bool   `json:"with_reply,omitempty"`
-	Timeout     int64  `json:"timeout,omitempty"`
+	// TODO Timeout     int64  `json:"timeout,omitempty"`
 	ServerAlias string `json:"serverAlias,omitempty"`
 
 	logger *zap.Logger
@@ -47,36 +51,40 @@ func (p *Publish) Provision(ctx caddy.Context) error {
 }
 
 func (p Publish) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	/*repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer)
-	addNATSPublishVarsToReplacer(repl, r)
+	repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer)
+	//addNATSPublishVarsToReplacer(repl, r)
 
 	//TODO: What method is best here? ReplaceAll vs ReplaceWithErr?
 	subj := repl.ReplaceAll(p.Subject, "")
 
 	//TODO: Check max msg size
 
-	p.logger.Debug("publishing NATS message", zap.String("subject", subj), zap.Bool("with_reply", p.WithReply), zap.Int64("timeout", p.Timeout))
+	//p.logger.Debug("publishing NATS message", zap.String("subject", subj), zap.Bool("with_reply", p.WithReply), zap.Int64("timeout", p.Timeout))
+	p.logger.Debug("publishing NATS message", zap.String("subject", subj))
 
-	if p.WithReply {
+	/*if p.WithReply {
 		return p.natsRequestReply(subj, r, w)
+	}*/
+
+	server, ok := p.app.Servers[p.ServerAlias]
+	if !ok {
+		return fmt.Errorf("NATS server alias %s not found", p.ServerAlias)
 	}
 
-	// Otherwise. just publish like normal
-	msg, err := p.createMsgForRequest(r, subj)
+	msg, err := p.createMsgForRequest(r, subj, server)
 	if err != nil {
 		return err
 	}
 
-	err = p.app.conn.PublishMsg(msg)
+	err = server.conn.PublishMsg(msg)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not publish NATS message: %w", err)
 	}
-	*/
 	return next.ServeHTTP(w, r)
 }
 
-func (p *Publish) createMsgForRequest(r *http.Request, subject string) (*nats.Msg, error) {
-	/*var msg *nats.Msg
+func (p *Publish) createMsgForRequest(r *http.Request, subject string, server *NatsServer) (*nats.Msg, error) {
+	var msg *nats.Msg
 	if r.ContentLength == -1 || r.ContentLength > 950_000_000 {
 
 		// content length unknown => chunked upload
@@ -85,7 +93,7 @@ func (p *Publish) createMsgForRequest(r *http.Request, subject string) (*nats.Ms
 		// => we temporarily store body in temp JetStream Object Store
 		fileStreamId := nuid.Next()
 
-		js, err := p.app.conn.JetStream()
+		js, err := server.conn.JetStream()
 		if err != nil {
 			return nil, err
 		}
@@ -125,8 +133,7 @@ func (p *Publish) createMsgForRequest(r *http.Request, subject string) (*nats.Ms
 
 	msg.Header.Add("X-Http-Method", r.Method)
 	msg.Header.Add("X-Http-Url", r.URL.String())
-	return msg, nil*/
-	return nil, nil
+	return msg, nil
 }
 
 //

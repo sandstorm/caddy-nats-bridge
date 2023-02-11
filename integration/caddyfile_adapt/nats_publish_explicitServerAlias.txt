@@ -35,8 +35,7 @@ localhost {
 																{
 																	"handler": "nats_publish",
 																	"serverAlias": "foo",
-																	"subject": "hello_service.{nats.subject.1}",
-																	"timeout": 10000
+																	"subject": "hello_service.{nats.subject.1}"
 																}
 															]
 														}
