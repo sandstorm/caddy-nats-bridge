@@ -8,6 +8,7 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"time"
 )
 
 func init() {
@@ -36,6 +37,12 @@ type NatsServer struct {
 	NkeyCredentialFile string `json:"nkeyCredentialFile,omitempty"`
 	ClientName         string `json:"clientName,omitempty"`
 	InboxPrefix        string `json:"inboxPrefix,omitempty"`
+
+	// if non-empty, large HTTP request bodies not fitting into a NATS message are stored in jetstream KV
+	// (for "nats_publish" or "nats_request")
+	LargeRequestBodyJetStreamBucketName string `json:"largeRequestBodyJetStreamBucketName,omitempty"`
+	largeRequestBodyObjectStore         nats.ObjectStore
+	//LargeResponseBodyJetStreamBucketName string `json:"largeResponseBodyJetStreamBucketName,omitempty"`
 
 	conn *nats.Conn
 }
@@ -101,9 +108,28 @@ func (app *NatsBridgeApp) Start() error {
 		}
 
 		server.conn, err = nats.Connect(server.NatsUrl, opts...)
-
 		if err != nil {
 			return fmt.Errorf("could not connect to %s : %w", server.NatsUrl, err)
+		}
+
+		if server.LargeRequestBodyJetStreamBucketName != "" {
+			js, err := server.conn.JetStream()
+			if err != nil {
+				return fmt.Errorf("could not load JetStream, although largeRequestBodyJetStreamBucketName is configured")
+			}
+			server.largeRequestBodyObjectStore, err = js.ObjectStore(server.LargeRequestBodyJetStreamBucketName)
+			if err == nats.ErrStreamNotFound {
+				server.largeRequestBodyObjectStore, err = js.CreateObjectStore(&nats.ObjectStoreConfig{
+					Bucket:      server.LargeRequestBodyJetStreamBucketName,
+					Description: "Temporary object store for large file uploads",
+					TTL:         5 * time.Minute, // TODO: configurable??
+				})
+				if err != nil {
+					return fmt.Errorf("object store %s could not be greated", server.LargeRequestBodyJetStreamBucketName)
+				}
+			} else if err != nil {
+				return fmt.Errorf("could not load ObjectStore %s: %w", server.LargeRequestBodyJetStreamBucketName, err)
+			}
 		}
 
 		app.logger.Info("connected to NATS server", zap.String("url", server.conn.ConnectedUrlRedacted()))

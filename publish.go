@@ -1,17 +1,14 @@
 package caddynats
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/nats-io/nats.go"
-	"github.com/nats-io/nuid"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
-	"time"
 )
 
 const publishDefaultTimeout = 10000
@@ -71,7 +68,7 @@ func (p Publish) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		return fmt.Errorf("NATS server alias %s not found", p.ServerAlias)
 	}
 
-	msg, err := p.createMsgForRequest(r, subj, server)
+	msg, err := p.natsMsgForHttpRequest(r, subj, server)
 	if err != nil {
 		return err
 	}
@@ -83,34 +80,31 @@ func (p Publish) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 	return next.ServeHTTP(w, r)
 }
 
-func (p *Publish) createMsgForRequest(r *http.Request, subject string, server *NatsServer) (*nats.Msg, error) {
+func (p *Publish) natsMsgForHttpRequest(r *http.Request, subject string, server *NatsServer) (*nats.Msg, error) {
 	var msg *nats.Msg
-	if r.ContentLength == -1 || r.ContentLength > 950_000_000 {
+	// TODO: real message size limit of NATS here
 
-		// content length unknown => chunked upload
-		// Content length > 950 KB
+	// NOTE: we could implement this in a streaming fashion to JetStream via
+	// _, err = os.Put(&nats.ObjectMeta{
+	//			Name: fileStreamId,
+	//		}, r.Body)
+	// but we could not make this work.
+	// So that's why we can easily read the full body here anyways to simplify code paths; and then we can
+	// decide based on the actual length; and not based of the ContentLength Header.
+	// In case we want to change it somewhen, we need to take care of Chunked Uploads via r.ContentLength == -1 || r.ContentLength > 950_000_000
+	b, _ := io.ReadAll(r.Body)
+	if len(b) > 950_000_000 {
+		/*// Content > 950 KB
+
+		if server.largeRequestBodyObjectStore == nil {
+			return nil, fmt.Errorf("HTTP body was bigger than the max NATS message size (currently hardcoded at 950 KB), but nats.largeRequestBodyJetStreamBucketName was not configured in Caddyfile")
+		}
 
 		// => we temporarily store body in temp JetStream Object Store
 		fileStreamId := nuid.Next()
-
-		js, err := server.conn.JetStream()
-		if err != nil {
-			return nil, err
-		}
-
-		os, err := js.CreateObjectStore(&nats.ObjectStoreConfig{
-			Bucket:      "temp-uploadfiles",
-			Description: "Temporary",
-			TTL:         5 * time.Minute,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		b, _ := io.ReadAll(r.Body) // TODO: directly sending r.Body to NATS does not work for some reason (although it should ^^^
-		_, err = os.Put(&nats.ObjectMeta{
+		_, err := server.largeRequestBodyObjectStore.Put(&nats.ObjectMeta{
 			Name: fileStreamId,
-		}, bytes.NewReader(b)) // r.Body
+		}, bytes.NewReader(b)) // TODO: somehow using r.Body directly does not work here
 		p.logger.Info("large file, putting to JetStream", zap.String("fileStreamId", fileStreamId))
 		if err != nil {
 			return nil, fmt.Errorf("cannot store binary to Object Store: %w", err)
@@ -119,26 +113,27 @@ func (p *Publish) createMsgForRequest(r *http.Request, subject string, server *N
 			Subject: subject,
 			Header:  nats.Header(r.Header),
 		}
-		msg.Header.Add("X-Large-Body-Id", fileStreamId)
+		msg.Header.Add("X-NatsHttp-LargeBody-Bucket", server.LargeRequestBodyJetStreamBucketName)
+		msg.Header.Add("X-NatsHttp-LargeBody-Id", fileStreamId)*/
+		// TODO write tests here
 	} else {
 		// "small" message -> embedded into Nats msg.
-		b, _ := io.ReadAll(r.Body)
 		msg = &nats.Msg{
 			Subject: subject,
 			Header:  nats.Header(r.Header),
 			Data:    b,
 		}
-
 	}
 
-	msg.Header.Add("X-Http-Method", r.Method)
-	msg.Header.Add("X-Http-Url", r.URL.String())
+	msg.Header.Add("X-NatsHttp-Method", r.Method)
+	msg.Header.Add("X-NatsHttp-UrlPath", r.URL.Path)
+	msg.Header.Add("X-NatsHttp-UrlQuery", r.URL.RawQuery)
 	return msg, nil
 }
 
 //
 //func (p *Publish) natsRequestReply(subject string, r *http.Request, w http.ResponseWriter) error {
-//	msg, err := p.createMsgForRequest(r, subject)
+//	msg, err := p.natsMsgForHttpRequest(r, subject)
 //	if err != nil {
 //		return err
 //	}

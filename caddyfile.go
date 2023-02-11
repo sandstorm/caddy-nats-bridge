@@ -105,6 +105,10 @@ func (app *NatsBridgeApp) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				if !d.AllArgs(&server.InboxPrefix) {
 					return d.ArgErr()
 				}
+			case "largeRequestBodyJetStreamBucketName":
+				if !d.AllArgs(&server.LargeRequestBodyJetStreamBucketName) {
+					return d.ArgErr()
+				}
 
 			/*case "subscribe":
 				s, err := parseSubscribeHandler(d)
