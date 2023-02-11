@@ -271,14 +271,17 @@ localhost {
 
 - HTTP Body = NATS Message Data
 - HTTP Headers = NATS Message Headers
-  - `X-Http-Method` header: contains the HTTP header `GET,POST,HEAD,...`
-  - `X-Http-UriPath` header: TODO
+  - `X-NatsHttp-Method` header: contains the HTTP header `GET,POST,HEAD,...`
+  - `X-NatsHttp-UrlPath` header: URI path without query string
+  - `X-NatsHttp-UrlQuery` header: query string
+  - `X-NatsHttp-LargeBody-Bucket` header
+  - `X-NatsHttp-LargeBody-Id` header
 - NATS messages have a size limit of usually 1 MB (and 8 MB as hardcoded limit).
   In case the HTTP body is bigger, or alternatively, is submitted with `Transfer-Encoding: chunked` (so we do not know the size upfront);
   we do the following:
   - We store the HTTP body in the [JetStream Object Storage (EXPERIMENTAL)](https://docs.nats.io/using-nats/developer/develop_jetstream/object)
     for a few minutes; in a random key.
-  - The name of this KV Storage key is stored in the `X-Large-Body-Id`.
+  - The name of this KV Storage key is stored in the `X-NatsHttp-LargeBody-Id`.
     - TODO: support for response body re-use based on cache etags?
 
 
