@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bufio"
+	"fmt"
 	"github.com/caddyserver/caddy/v2/caddytest"
 	"github.com/nats-io/nats.go"
 	"net/http"
@@ -33,7 +34,9 @@ const defaultCaddyConf = `
 {
 	http_port 8889
 	admin localhost:2999
-	nats 127.0.0.1:8369
+	nats {
+		url 127.0.0.1:8369
+	}
 }
 `
 
@@ -49,6 +52,7 @@ func TestPublishRequestToNats(t *testing.T) {
 		description       string
 		buildHttpRequest  func(t *testing.T) *http.Request
 		assertNatsMessage func(msg *nats.Msg, nc *nats.Conn, t *testing.T)
+		CaddyfileSnippet  string
 	}
 
 	// Testcases
@@ -62,6 +66,11 @@ func TestPublishRequestToNats(t *testing.T) {
 				req.Header.Add("Custom-Header", "MyValue")
 				return req
 			},
+			CaddyfileSnippet: `
+				route /test/* {
+					nats_publish greet.hello
+				}
+			`,
 			assertNatsMessage: func(msg *nats.Msg, nc *nats.Conn, t *testing.T) {
 				if msg.Header.Get("Custom-Header") != "MyValue" {
 					t.Fatalf("Custom-Header not correct, expected 'MyValue', actual headers: %+v", msg.Header)
@@ -80,6 +89,11 @@ func TestPublishRequestToNats(t *testing.T) {
 				failOnErr("Error creating request: %w", err, t)
 				return req
 			},
+			CaddyfileSnippet: `
+				route /test/* {
+					nats_publish greet.hello
+				}
+			`,
 			assertNatsMessage: func(msg *nats.Msg, nc *nats.Conn, t *testing.T) {
 				// TODO: X-URL
 				if msg.Header.Get("X-Http-Method") != "POST" {
@@ -99,6 +113,11 @@ func TestPublishRequestToNats(t *testing.T) {
 				failOnErr("Error creating request: %w", err, t)
 				return req
 			},
+			CaddyfileSnippet: `
+				route /test/* {
+					nats_publish greet.hello
+				}
+			`,
 			assertNatsMessage: func(msg *nats.Msg, nc *nats.Conn, t *testing.T) {
 				// TODO: X-URL
 				if msg.Header.Get("X-Http-Method") != "POST" {
@@ -137,13 +156,11 @@ func TestPublishRequestToNats(t *testing.T) {
 			defer subscription.Unsubscribe()
 			failOnErr("error subscribing to greet.>: %w", err, t)
 
-			caddyTester.InitServer(defaultCaddyConf+`
+			caddyTester.InitServer(fmt.Sprintf(`%s
 				:8889 {
-					route /test/* {
-						nats_publish greet.hello
-					}
+					%s
 				}
-			`, "caddyfile")
+			`, defaultCaddyConf, testcase.CaddyfileSnippet), "caddyfile")
 
 			// Build request, and
 			req := testcase.buildHttpRequest(t)

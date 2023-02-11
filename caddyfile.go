@@ -2,12 +2,10 @@ package caddynats
 
 import (
 	"encoding/json"
-	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
-	"strconv"
-
 	"github.com/caddyserver/caddy/v2/caddyconfig"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
+	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
 
 func init() {
@@ -154,7 +152,7 @@ func (app *NatsBridgeApp) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 func parsePublishHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
 	var p = Publish{
 		//WithReply: false,
-		Timeout:     publishDefaultTimeout,
+		//Timeout:     publishDefaultTimeout,
 		ServerAlias: "default",
 	}
 	err := p.UnmarshalCaddyfile(h.Dispenser)
@@ -175,16 +173,16 @@ func (p *Publish) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 		for d.NextBlock(0) {
 			switch d.Val() {
-			case "timeout":
-				if !d.NextArg() {
-					return d.ArgErr()
-				}
-				t, err := strconv.Atoi(d.Val())
-				if err != nil {
-					return d.Err("timeout is not a valid integer")
-				}
+			/*case "timeout":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			t, err := strconv.Atoi(d.Val())
+			if err != nil {
+				return d.Err("timeout is not a valid integer")
+			}
 
-				p.Timeout = int64(t)
+			p.Timeout = int64(t)*/
 			default:
 				return d.Errf("unrecognized subdirective: %s", d.Val())
 			}
