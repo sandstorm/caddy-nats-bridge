@@ -64,7 +64,8 @@ To connect to `nats`, simply use the `nats` global option in your Caddyfile with
 ```
 
 The `alias` is a server-reference which is relevant if you want to connect to two NATS servers at the same time.
-It is 
+
+To connect to multiple servers (NATS Cluster), separate them with `,` in the `url` parameter.
 
 On top, the following options are supported:
 
@@ -269,6 +270,7 @@ localhost {
 - HTTP Body = NATS Message Data
 - HTTP Headers = NATS Message Headers
   - `X-Http-Method` header: contains the HTTP header `GET,POST,HEAD,...`
+  - `X-Http-UriPath` header: TODO
 - NATS messages have a size limit of usually 1 MB (and 8 MB as hardcoded limit).
   In case the HTTP body is bigger, or alternatively, is submitted with `Transfer-Encoding: chunked` (so we do not know the size upfront);
   we do the following:

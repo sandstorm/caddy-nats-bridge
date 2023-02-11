@@ -2,6 +2,7 @@ package caddynats
 
 import (
 	"encoding/json"
+	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"strconv"
 
 	"github.com/caddyserver/caddy/v2/caddyconfig"
@@ -11,7 +12,7 @@ import (
 
 func init() {
 	httpcaddyfile.RegisterGlobalOption("nats", parseGobalNatsOption)
-	//httpcaddyfile.RegisterHandlerDirective("nats_publish", parsePublishHandler)
+	httpcaddyfile.RegisterHandlerDirective("nats_publish", parsePublishHandler)
 	//httpcaddyfile.RegisterHandlerDirective("nats_request", parseRequestHandler)
 }
 
@@ -39,16 +40,7 @@ func parseGobalNatsOption(d *caddyfile.Dispenser, existingVal interface{}) (inte
 	}, err
 }
 
-/*func parsePublishHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
-	var p = Publish{
-		WithReply: false,
-		Timeout:   publishDefaultTimeout,
-	}
-	err := p.UnmarshalCaddyfile(h.Dispenser)
-	return p, err
-}
-
-func parseRequestHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
+/*func parseRequestHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
 	var p = Publish{
 		WithReply: true,
 		Timeout:   publishDefaultTimeout,
@@ -67,7 +59,7 @@ func parseSubscribeHandler(d *caddyfile.Dispenser) (Subscribe, error) {
 	return s, nil
 }*/
 
-func parseQueueSubscribeHandler(d *caddyfile.Dispenser) (Subscribe, error) {
+/*func parseQueueSubscribeHandler(d *caddyfile.Dispenser) (Subscribe, error) {
 	s := Subscribe{}
 	// TODO: handle errors better here
 	if !d.AllArgs(&s.Subject, &s.QueueGroup, &s.Method, &s.URL) {
@@ -75,7 +67,7 @@ func parseQueueSubscribeHandler(d *caddyfile.Dispenser) (Subscribe, error) {
 	}
 
 	return s, nil
-}
+}*/
 
 func (app *NatsBridgeApp) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
@@ -159,10 +151,26 @@ func (app *NatsBridgeApp) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	return nil
 }
 
+func parsePublishHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
+	var p = Publish{
+		//WithReply: false,
+		Timeout:     publishDefaultTimeout,
+		ServerAlias: "default",
+	}
+	err := p.UnmarshalCaddyfile(h.Dispenser)
+	return p, err
+}
 func (p *Publish) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
-		if !d.Args(&p.Subject) {
-			return d.Errf("Wrong argument count or unexpected line ending after '%s'", d.Val())
+		if d.CountRemainingArgs() == 2 {
+			if !d.Args(&p.ServerAlias, &p.Subject) {
+				// should never fail because of the check above for remainingArgs==2
+				return d.Errf("Wrong argument count or unexpected line ending after '%s'", d.Val())
+			}
+		} else {
+			if !d.Args(&p.Subject) {
+				return d.Errf("Wrong argument count or unexpected line ending after '%s'", d.Val())
+			}
 		}
 
 		for d.NextBlock(0) {
