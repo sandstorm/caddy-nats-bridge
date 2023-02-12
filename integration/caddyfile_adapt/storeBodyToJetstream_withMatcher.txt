@@ -39,6 +39,7 @@ localhost {
 																{
 																	"bucket": "LargeHttpRequestBodies",
 																	"handler": "store_body_to_jetstream",
+																	"serverAlias": "default",
 																	"ttl": 300000000000
 																}
 															],
