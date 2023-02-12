@@ -1,0 +1,29 @@
+{
+	nats {
+		url 127.0.0.1:4222
+		subscribe my.pattern.> POST http://127.0.0.1/foo/bar {
+			queue q
+		}
+	}
+}
+----------
+{
+	"apps": {
+		"nats": {
+			"servers": {
+				"default": {
+					"url": "127.0.0.1:4222",
+					"handle": [
+						{
+							"handler": "subscribe",
+							"method": "POST",
+							"path": "http://127.0.0.1/foo/bar",
+							"queue_group": "q",
+							"subject": "my.pattern.\u003e"
+						}
+					]
+				}
+			}
+		}
+	}
+}
