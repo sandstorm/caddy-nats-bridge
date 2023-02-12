@@ -240,8 +240,19 @@ localhost {
 }
 ```
 
-#### TODO: Tests for nats_publish
+#### large HTTP payloads with store_body_to_jetstream
 
+(TODO describe here)
+
+```nginx
+localhost {
+  route /hello {
+    store_body_to_jetstream // TODO: condition if message is large or chunked.
+    nats_publish events.hello
+    respond "Hello, world"
+  }
+}
+```
 ---
 
 ### nats_request

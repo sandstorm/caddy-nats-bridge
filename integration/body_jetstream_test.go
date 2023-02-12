@@ -74,10 +74,11 @@ func TestPublishRequestToNatsWithBodyJetstream(t *testing.T) {
 			},
 		},
 		{
-			description: "for requests without body, no headers shoul dbe added.",
+			description: "for requests without body, no headers should be added.",
 			buildHttpRequest: func(t *testing.T) *http.Request {
 				req, err := http.NewRequest("GET", "http://localhost:8889/test/hi", nil)
 				failOnErr("Error creating request: %w", err, t)
+
 				return req
 			},
 			GlobalNatsCaddyfileSnippet: ``,
@@ -102,6 +103,11 @@ func TestPublishRequestToNatsWithBodyJetstream(t *testing.T) {
 				}
 			},
 		},
+
+		// TODO realistic case with Transfer-Encoding chunked:
+		//// // NOTE: we need to use bufio.NewReader, to enforce a Transfer-Encoding=chunked. See net.http.NewRequestWithContext from Go Stdlib.
+		//				req, err := http.NewRequest("POST", "http://localhost:8889/test/hi", bufio.NewReader(strings.NewReader("Small Request Body, but chunked transfer encoding")))
+		//				req.Header.Add("Transfer-Encoding", "chunked")
 	}
 
 	// we share the same NATS Server and Caddy Server for all testcases

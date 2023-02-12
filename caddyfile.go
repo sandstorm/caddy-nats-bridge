@@ -14,15 +14,6 @@ func init() {
 	return p, err
 }
 
-func parseSubscribeHandler(d *caddyfile.Dispenser) (Subscribe, error) {
-	s := Subscribe{}
-	// TODO: handle errors better here
-	if !d.AllArgs(&s.Subject, &s.Method, &s.URL) {
-		return s, d.Err("wrong number of arguments")
-	}
-
-	return s, nil
-}*/
 
 /*func parseQueueSubscribeHandler(d *caddyfile.Dispenser) (Subscribe, error) {
 	s := Subscribe{}

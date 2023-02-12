@@ -20,16 +20,6 @@ func failOnErr(message string, err error, t *testing.T) {
 	}
 }
 
-func objectStore(nc *nats.Conn, t *testing.T) nats.ObjectStore {
-	js, err := nc.JetStream()
-	failOnErr("JetStream not retrievable: %w", err, t)
-
-	os, err := js.ObjectStore("temp-uploadfiles")
-	failOnErr("Object Store not retrievable: %w", err, t)
-
-	return os
-}
-
 const defaultCaddyConf = `
 {
 	http_port 8889
@@ -50,11 +40,10 @@ const defaultCaddyConf = `
 //	 greet.*      └──────────────┘
 func TestPublishRequestToNats(t *testing.T) {
 	type testCase struct {
-		description                string
-		buildHttpRequest           func(t *testing.T) *http.Request
-		assertNatsMessage          func(msg *nats.Msg, nc *nats.Conn, t *testing.T)
-		GlobalNatsCaddyfileSnippet string
-		CaddyfileSnippet           string
+		description       string
+		buildHttpRequest  func(t *testing.T) *http.Request
+		assertNatsMessage func(msg *nats.Msg, nc *nats.Conn, t *testing.T)
+		CaddyfileSnippet  string
 	}
 
 	// Testcases
@@ -68,7 +57,6 @@ func TestPublishRequestToNats(t *testing.T) {
 				req.Header.Add("Custom-Header", "MyValue")
 				return req
 			},
-			GlobalNatsCaddyfileSnippet: ``,
 			CaddyfileSnippet: `
 				route /test/* {
 					nats_publish greet.hello
@@ -97,7 +85,6 @@ func TestPublishRequestToNats(t *testing.T) {
 				failOnErr("Error creating request: %w", err, t)
 				return req
 			},
-			GlobalNatsCaddyfileSnippet: ``,
 			CaddyfileSnippet: `
 				route /test/* {
 					nats_publish greet.hello
@@ -116,7 +103,6 @@ func TestPublishRequestToNats(t *testing.T) {
 				failOnErr("Error creating request: %w", err, t)
 				return req
 			},
-			GlobalNatsCaddyfileSnippet: ``,
 			CaddyfileSnippet: `
 				route /test/* {
 					nats_publish greet.hello
@@ -183,7 +169,7 @@ func TestPublishRequestToNats(t *testing.T) {
 				:8889 {
 					%s
 				}
-			`, testcase.GlobalNatsCaddyfileSnippet, testcase.CaddyfileSnippet), "caddyfile")
+			`, "", testcase.CaddyfileSnippet), "caddyfile")
 
 			// Build request, and
 			req := testcase.buildHttpRequest(t)

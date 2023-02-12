@@ -1,6 +1,8 @@
 package common
 
-import "context"
+import (
+	"context"
+)
 
 type ExtraNatsMsgHeaders map[string]string
 

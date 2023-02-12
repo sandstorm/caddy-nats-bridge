@@ -5,6 +5,7 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
+	"sandstorm.de/custom-caddy/nats-bridge/subscribe"
 )
 
 func ParseGobalNatsOption(d *caddyfile.Dispenser, existingVal interface{}) (interface{}, error) {
@@ -69,15 +70,15 @@ func (app *NatsBridgeApp) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				if !d.AllArgs(&server.InboxPrefix) {
 					return d.ArgErr()
 				}
-			/*case "subscribe":
-				s, err := parseSubscribeHandler(d)
+			case "subscribe":
+				s, err := subscribe.ParseSubscribeHandler(d)
 				if err != nil {
 					return err
 				}
 				jsonHandler := caddyconfig.JSONModuleObject(s, "handler", s.CaddyModule().ID.Name(), nil)
-				app.HandlersRaw = append(app.HandlersRaw, jsonHandler)
+				server.HandlersRaw = append(server.HandlersRaw, jsonHandler)
 
-			case "reply":
+			/*case "reply":
 				s, err := parseSubscribeHandler(d)
 				s.WithReply = true
 				if err != nil {

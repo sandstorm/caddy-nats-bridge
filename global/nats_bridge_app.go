@@ -7,17 +7,16 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"sandstorm.de/custom-caddy/nats-bridge/common"
 )
 
+// NatsBridgeApp is the global nats bridge for Caddy.
+//
 // NATS is a simple, secure and performant communications system for digital
 // systems, services and devices.
 type NatsBridgeApp struct {
 	// Immutable after provisioning
-	Servers     map[string]*NatsServer `json:"servers,omitempty"`
-	HandlersRaw []json.RawMessage      `json:"handle,omitempty" caddy:"namespace=nats.handlers inline_key=handler"`
-
-	// Decoded values
-	//Handlers []Handler `json:"-"`
+	Servers map[string]*NatsServer `json:"servers,omitempty"`
 
 	logger *zap.Logger
 	ctx    caddy.Context
@@ -30,6 +29,11 @@ type NatsServer struct {
 	NkeyCredentialFile string `json:"nkeyCredentialFile,omitempty"`
 	ClientName         string `json:"clientName,omitempty"`
 	InboxPrefix        string `json:"inboxPrefix,omitempty"`
+
+	HandlersRaw []json.RawMessage `json:"handle,omitempty" caddy:"namespace=nats.handlers inline_key=handler"`
+
+	// Decoded values
+	Handlers []common.NatsHandler `json:"-"`
 
 	Conn *nats.Conn `json:"-"`
 }
@@ -52,17 +56,18 @@ func (app *NatsBridgeApp) Provision(ctx caddy.Context) error {
 	app.ctx = ctx
 	app.logger = ctx.Logger(app)
 
-	// Set up handlers
-	/*if app.HandlersRaw != nil {
-		vals, err := ctx.LoadModule(app, "HandlersRaw")
-		if err != nil {
-			return fmt.Errorf("loading handler modules: %v", err)
+	// Set up handlers for each server
+	for _, server := range app.Servers {
+		if server.HandlersRaw != nil {
+			vals, err := ctx.LoadModule(server, "HandlersRaw")
+			if err != nil {
+				return fmt.Errorf("loading handler modules: %v", err)
+			}
+			for _, val := range vals.([]interface{}) {
+				server.Handlers = append(server.Handlers, val.(common.NatsHandler))
+			}
 		}
-
-		for _, val := range vals.([]interface{}) {
-			app.Handlers = append(app.Handlers, val.(Handler))
-		}
-	}*/
+	}
 
 	return nil
 }
@@ -99,35 +104,14 @@ func (app *NatsBridgeApp) Start() error {
 			return fmt.Errorf("could not connect to %s : %w", server.NatsUrl, err)
 		}
 
-		/*if server.LargeRequestBodyJetStreamBucketName != "" {
-			js, err := server.Conn.JetStream()
-			if err != nil {
-				return fmt.Errorf("could not load JetStream, although largeRequestBodyJetStreamBucketName is configured")
-			}
-			server.largeRequestBodyObjectStore, err = js.ObjectStore(server.LargeRequestBodyJetStreamBucketName)
-			if err == nats.ErrStreamNotFound {
-				server.largeRequestBodyObjectStore, err = js.CreateObjectStore(&nats.ObjectStoreConfig{
-					Bucket:      server.LargeRequestBodyJetStreamBucketName,
-					Description: "Temporary object store for large file uploads",
-					TTL:         5 * time.Minute, // TODO: configurable??
-				})
-				if err != nil {
-					return fmt.Errorf("object store %s could not be greated", server.LargeRequestBodyJetStreamBucketName)
-				}
-			} else if err != nil {
-				return fmt.Errorf("could not load ObjectStore %s: %w", server.LargeRequestBodyJetStreamBucketName, err)
-			}
-		}*/
-
 		app.logger.Info("connected to NATS server", zap.String("url", server.Conn.ConnectedUrlRedacted()))
 
-		// TODO
-		/*for _, handler := range app.Handlers {
-			err := handler.Subscribe(Conn)
+		for _, handler := range server.Handlers {
+			err := handler.Subscribe(server.Conn)
 			if err != nil {
 				return err
 			}
-		}*/
+		}
 	}
 
 	return nil
@@ -136,19 +120,19 @@ func (app *NatsBridgeApp) Start() error {
 func (app *NatsBridgeApp) Stop() error {
 	defer func() {
 		for _, server := range app.Servers {
+			app.logger.Info("closing NATS connection", zap.String("url", server.Conn.ConnectedUrlRedacted()))
 			server.Conn.Close()
 		}
 	}()
 
+	app.logger.Info("stopping all NATS subscriptions")
 	for _, server := range app.Servers {
-		app.logger.Info("closing NATS connection", zap.String("url", server.Conn.ConnectedUrlRedacted()))
-		// TODO
-		/*for _, handler := range app.Handlers {
-			err := handler.Unsubscribe(app.Conn)
+		for _, handler := range server.Handlers {
+			err := handler.Unsubscribe(server.Conn)
 			if err != nil {
 				return err
 			}
-		}*/
+		}
 	}
 
 	return nil
