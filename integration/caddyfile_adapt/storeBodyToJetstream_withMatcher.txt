@@ -1,0 +1,78 @@
+localhost {
+	route /test/* {
+		@large_request_body {
+			method POST
+			path /foo/*
+		}
+		store_body_to_jetstream @large_request_body
+	}
+}
+----------
+{
+	"apps": {
+		"http": {
+			"servers": {
+				"srv0": {
+					"listen": [
+						":443"
+					],
+					"routes": [
+						{
+							"match": [
+								{
+									"host": [
+										"localhost"
+									]
+								}
+							],
+							"handle": [
+								{
+									"handler": "subroute",
+									"routes": [
+										{
+											"handle": [
+												{
+													"handler": "subroute",
+													"routes": [
+														{
+															"handle": [
+																{
+																	"bucket": "LargeHttpRequestBodies",
+																	"handler": "store_body_to_jetstream",
+																	"ttl": 300000000000
+																}
+															],
+															"match": [
+																{
+																	"method": [
+																		"POST"
+																	],
+																	"path": [
+																		"/foo/*"
+																	]
+																}
+															]
+														}
+													]
+												}
+											],
+											"match": [
+												{
+													"path": [
+														"/test/*"
+													]
+												}
+											]
+										}
+									]
+								}
+							],
+							"terminal": true
+						}
+					]
+				}
+			}
+		}
+	}
+}
+

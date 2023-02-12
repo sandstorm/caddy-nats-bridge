@@ -11,6 +11,7 @@ import (
 func init() {
 	httpcaddyfile.RegisterGlobalOption("nats", parseGobalNatsOption)
 	httpcaddyfile.RegisterHandlerDirective("nats_publish", parsePublishHandler)
+
 	//httpcaddyfile.RegisterHandlerDirective("nats_request", parseRequestHandler)
 }
 
@@ -105,11 +106,6 @@ func (app *NatsBridgeApp) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				if !d.AllArgs(&server.InboxPrefix) {
 					return d.ArgErr()
 				}
-			case "largeRequestBodyJetStreamBucketName":
-				if !d.AllArgs(&server.LargeRequestBodyJetStreamBucketName) {
-					return d.ArgErr()
-				}
-
 			/*case "subscribe":
 				s, err := parseSubscribeHandler(d)
 				if err != nil {

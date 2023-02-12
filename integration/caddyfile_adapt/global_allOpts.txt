@@ -5,8 +5,6 @@
 		nkeyCredentialFile /my/file/here
 		clientName foo
 		inboxPrefix _INBOX_nvfeiuwjsdioc
-
-		largeRequestBodyJetStreamBucketName myApp_largeHttpRequestBodies
 	}
 }
 
@@ -20,8 +18,7 @@
 					"userCredentialFile": "/my/file/here2",
 					"nkeyCredentialFile": "/my/file/here",
 					"clientName": "foo",
-					"inboxPrefix": "_INBOX_nvfeiuwjsdioc",
-					"largeRequestBodyJetStreamBucketName": "myApp_largeHttpRequestBodies"
+					"inboxPrefix": "_INBOX_nvfeiuwjsdioc"
 				}
 			}
 		}

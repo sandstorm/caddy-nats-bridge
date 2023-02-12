@@ -6,13 +6,18 @@ import (
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
+	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
-	"time"
+	"sandstorm.de/custom-caddy/nats-bridge/body_jetstream"
 )
 
 func init() {
 	caddy.RegisterModule(NatsBridgeApp{})
+
+	// store request body to Jetstream
+	caddy.RegisterModule(body_jetstream.StoreBodyToJetStream{})
+	httpcaddyfile.RegisterHandlerDirective("store_body_to_jetstream", body_jetstream.ParseStoreBodyToJetstream)
 }
 
 // NatsBridgeApp connects caddy to a NATS server.
@@ -37,12 +42,6 @@ type NatsServer struct {
 	NkeyCredentialFile string `json:"nkeyCredentialFile,omitempty"`
 	ClientName         string `json:"clientName,omitempty"`
 	InboxPrefix        string `json:"inboxPrefix,omitempty"`
-
-	// if non-empty, large HTTP request bodies not fitting into a NATS message are stored in jetstream KV
-	// (for "nats_publish" or "nats_request")
-	LargeRequestBodyJetStreamBucketName string `json:"largeRequestBodyJetStreamBucketName,omitempty"`
-	largeRequestBodyObjectStore         nats.ObjectStore
-	//LargeResponseBodyJetStreamBucketName string `json:"largeResponseBodyJetStreamBucketName,omitempty"`
 
 	conn *nats.Conn
 }
@@ -112,7 +111,7 @@ func (app *NatsBridgeApp) Start() error {
 			return fmt.Errorf("could not connect to %s : %w", server.NatsUrl, err)
 		}
 
-		if server.LargeRequestBodyJetStreamBucketName != "" {
+		/*if server.LargeRequestBodyJetStreamBucketName != "" {
 			js, err := server.conn.JetStream()
 			if err != nil {
 				return fmt.Errorf("could not load JetStream, although largeRequestBodyJetStreamBucketName is configured")
@@ -130,7 +129,7 @@ func (app *NatsBridgeApp) Start() error {
 			} else if err != nil {
 				return fmt.Errorf("could not load ObjectStore %s: %w", server.LargeRequestBodyJetStreamBucketName, err)
 			}
-		}
+		}*/
 
 		app.logger.Info("connected to NATS server", zap.String("url", server.conn.ConnectedUrlRedacted()))
 
