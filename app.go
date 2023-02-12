@@ -6,14 +6,17 @@ import (
 	"sandstorm.de/custom-caddy/nats-bridge/body_jetstream"
 	"sandstorm.de/custom-caddy/nats-bridge/global"
 	"sandstorm.de/custom-caddy/nats-bridge/publish"
+	"sandstorm.de/custom-caddy/nats-bridge/subscribe"
 )
 
 func init() {
 	caddy.RegisterModule(global.NatsBridgeApp{})
 	httpcaddyfile.RegisterGlobalOption("nats", global.ParseGobalNatsOption)
+	caddy.RegisterModule(subscribe.Subscribe{})
+	httpcaddyfile.RegisterHandlerDirective("nats_publish", publish.ParsePublishHandler)
 
 	caddy.RegisterModule(publish.Publish{})
-	httpcaddyfile.RegisterHandlerDirective("nats_publish", publish.ParsePublishHandler)
+	//httpcaddyfile.RegisterHandlerDirective("nats_publish", publish.ParsePublishHandler)
 
 	// store request body to Jetstream
 	caddy.RegisterModule(body_jetstream.StoreBodyToJetStream{})

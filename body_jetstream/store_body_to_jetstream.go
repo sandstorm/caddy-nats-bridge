@@ -24,7 +24,7 @@ type StoreBodyToJetStream struct {
 
 	app    *global.NatsBridgeApp
 	logger *zap.Logger
-	// always use objectStore() to access, to ensure it is initialized.
+	// do not use directly, but always use objectStore() to access, to ensure it is initialized.
 	os atomic.Pointer[nats.ObjectStore]
 }
 
