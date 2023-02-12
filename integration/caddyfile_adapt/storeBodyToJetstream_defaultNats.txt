@@ -1,8 +1,6 @@
 localhost {
 	route /test/* {
-		store_body_to_jetstream mynats "myBucket" {
-			ttl "10m"
-		}
+		store_body_to_jetstream bucket42
 	}
 }
 ----------
@@ -35,10 +33,10 @@ localhost {
 														{
 															"handle": [
 																{
-																	"bucket": "myBucket",
+																	"bucket": "bucket42",
 																	"handler": "store_body_to_jetstream",
-																	"serverAlias": "mynats",
-																	"ttl": 600000000000
+																	"serverAlias": "default",
+																	"ttl": 300000000000
 																}
 															]
 														}

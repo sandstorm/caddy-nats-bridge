@@ -1,4 +1,4 @@
-package caddynats
+package publish
 
 import (
 	"fmt"
@@ -9,12 +9,14 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"net/http"
+	"sandstorm.de/custom-caddy/nats-bridge/common"
+	"sandstorm.de/custom-caddy/nats-bridge/global"
 )
 
 const publishDefaultTimeout = 10000
 
 func init() {
-	caddy.RegisterModule(Publish{})
+
 }
 
 type Publish struct {
@@ -24,7 +26,7 @@ type Publish struct {
 	ServerAlias string `json:"serverAlias,omitempty"`
 
 	logger *zap.Logger
-	app    *NatsBridgeApp
+	app    *global.NatsBridgeApp
 }
 
 func (Publish) CaddyModule() caddy.ModuleInfo {
@@ -42,7 +44,7 @@ func (p *Publish) Provision(ctx caddy.Context) error {
 		return fmt.Errorf("getting NATS app: %v. Make sure NATS is configured in global options", err)
 	}
 
-	p.app = natsAppIface.(*NatsBridgeApp)
+	p.app = natsAppIface.(*global.NatsBridgeApp)
 
 	return nil
 }
@@ -73,14 +75,14 @@ func (p Publish) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		return err
 	}
 
-	err = server.conn.PublishMsg(msg)
+	err = server.Conn.PublishMsg(msg)
 	if err != nil {
 		return fmt.Errorf("could not publish NATS message: %w", err)
 	}
 	return next.ServeHTTP(w, r)
 }
 
-func (p *Publish) natsMsgForHttpRequest(r *http.Request, subject string, server *NatsServer) (*nats.Msg, error) {
+func (p *Publish) natsMsgForHttpRequest(r *http.Request, subject string, server *global.NatsServer) (*nats.Msg, error) {
 	var msg *nats.Msg
 	// TODO: real message size limit of NATS here
 
@@ -117,10 +119,13 @@ func (p *Publish) natsMsgForHttpRequest(r *http.Request, subject string, server 
 		msg.Header.Add("X-NatsHttp-LargeBody-Id", fileStreamId)*/
 		// TODO write tests here
 	} else {
-		// "small" message -> embedded into Nats msg.
+		headers := nats.Header(r.Header)
+		for k, v := range common.ExtraNatsMsgHeadersFromContext(r.Context()) {
+			headers.Add(k, v)
+		}
 		msg = &nats.Msg{
 			Subject: subject,
-			Header:  nats.Header(r.Header),
+			Header:  headers,
 			Data:    b,
 		}
 	}

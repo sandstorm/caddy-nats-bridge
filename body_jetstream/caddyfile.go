@@ -14,13 +14,21 @@ import (
 //	}
 func ParseStoreBodyToJetstream(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
 	var sb = StoreBodyToJetStream{
-		Bucket: "LargeHttpRequestBodies",
-		TTL:    5 * time.Minute,
+		ServerAlias: "default",
+		Bucket:      "LargeHttpRequestBodies",
+		TTL:         5 * time.Minute,
 	}
 
 	for h.Next() {
-		if h.CountRemainingArgs() > 0 {
-			h.AllArgs(&sb.Bucket)
+		if h.CountRemainingArgs() == 1 {
+			if !h.AllArgs(&sb.Bucket) {
+				return nil, h.ArgErr()
+			}
+		}
+		if h.CountRemainingArgs() >= 2 {
+			if !h.AllArgs(&sb.ServerAlias, &sb.Bucket) {
+				return nil, h.ArgErr()
+			}
 		}
 
 		for h.NextBlock(0) {

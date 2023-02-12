@@ -165,7 +165,7 @@ func TestPublishRequestToNats(t *testing.T) {
 				}
 			},
 		},
-		// TODO: large POST request -> jetstream
+		// WILDCARDS!!
 	}
 
 	// we share the same NATS Server and Caddy Server for all testcases
