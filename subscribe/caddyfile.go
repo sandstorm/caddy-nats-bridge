@@ -1,13 +1,30 @@
 package subscribe
 
-import "github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
+import (
+	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
+)
 
-func ParseSubscribeHandler(d *caddyfile.Dispenser) (Subscribe, error) {
+// ParseSubscribeHandler parses the subscribe directive. Syntax:
+//
+//	subscribe subjectPattern HTTPMethod HTTPURL {
+//	    [queue queueGroupName]
+//	}
+func ParseSubscribeHandler(d *caddyfile.Dispenser) (*Subscribe, error) {
 	s := Subscribe{}
-	// TODO: handle errors better here
-	if !d.AllArgs(&s.Subject, &s.Method, &s.URL) {
-		return s, d.Err("wrong number of arguments")
+	if !d.Args(&s.Subject, &s.Method, &s.URL) {
+		return nil, d.ArgErr()
 	}
 
-	return s, nil
+	for nesting := d.Nesting(); d.NextBlock(nesting); {
+		switch d.Val() {
+		case "queue":
+			if !d.AllArgs(&s.QueueGroup) {
+				return nil, d.ArgErr()
+			}
+		default:
+			return nil, d.Errf("unrecognized subdirective: %s", d.Val())
+		}
+	}
+
+	return &s, nil
 }

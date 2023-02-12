@@ -19,7 +19,6 @@ type Subscribe struct {
 	Method     string `json:"method,omitempty"`
 	URL        string `json:"path,omitempty"`
 	QueueGroup string `json:"queue_group,omitempty"`
-	WithReply  bool   `json:"with_reply,omitempty"`
 
 	conn    *nats.Conn
 	sub     *nats.Subscription
@@ -49,7 +48,6 @@ func (s *Subscribe) Subscribe(conn *nats.Conn) error {
 		zap.String("queue_group", s.QueueGroup),
 		zap.String("method", s.Method),
 		zap.String("url", s.URL),
-		zap.Bool("with_reply", s.WithReply),
 	)
 
 	httpAppIface, err := s.ctx.App("http")
@@ -59,9 +57,11 @@ func (s *Subscribe) Subscribe(conn *nats.Conn) error {
 	s.httpApp = httpAppIface.(*caddyhttp.App)
 	s.conn = conn
 
-	// TODO if s.QueueGroup
-	sub, err := conn.Subscribe(s.Subject, s.handler)
-	s.sub = sub
+	if s.QueueGroup != "" {
+		s.sub, err = conn.QueueSubscribe(s.Subject, s.QueueGroup, s.handler)
+	} else {
+		s.sub, err = conn.Subscribe(s.Subject, s.handler)
+	}
 
 	return err
 }
@@ -73,7 +73,6 @@ func (s *Subscribe) Unsubscribe(conn *nats.Conn) error {
 		zap.String("queue_group", s.QueueGroup),
 		zap.String("method", s.Method),
 		zap.String("url", s.URL),
-		zap.Bool("with_reply", s.WithReply),
 	)
 
 	return s.sub.Drain()
@@ -92,7 +91,7 @@ func (s *Subscribe) handler(msg *nats.Msg) {
 		zap.String("queue_group", s.QueueGroup),
 		zap.String("method", method),
 		zap.String("url", url),
-		zap.Bool("with_reply", s.WithReply),
+		zap.Bool("with_reply", msg.Reply != ""),
 	)
 
 	req, err := s.prepareRequest(method, url, bytes.NewBuffer(msg.Data), msg.Header)
@@ -107,14 +106,20 @@ func (s *Subscribe) handler(msg *nats.Msg) {
 		return
 	}
 
-	if s.WithReply {
+	if msg.Reply != "" {
+		// the incoming NATS Message has a reply subject set; so it was sent via request() (and not via publish()).
+		// -> so we can send the response back.
 		rec := httptest.NewRecorder()
 		server.ServeHTTP(rec, req)
 		//TODO Handle error
-		msg.Respond(rec.Body.Bytes())
+		msg.RespondMsg(&nats.Msg{
+			Header: nats.Header(rec.Header()),
+			Data:   rec.Body.Bytes(),
+		})
 		return
 	}
 
+	// no reply subject was set -> the original NATS requester is not interested in the response - we can ignore it.
 	server.ServeHTTP(common.NoopResponseWriter{}, req)
 }
 
