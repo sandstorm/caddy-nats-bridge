@@ -75,7 +75,7 @@ func (p Request) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		return err
 	}
 
-	err = server.Conn.PublishMsg(msg)
+	resp, err = server.Conn.RequestMsg(msg, publishDefaultTimeout)
 	if err != nil {
 		return fmt.Errorf("could not publish NATS message: %w", err)
 	}
