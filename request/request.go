@@ -9,16 +9,9 @@ import (
 	"github.com/sandstorm/caddy-nats-bridge/common"
 	"github.com/sandstorm/caddy-nats-bridge/natsbridge"
 	"go.uber.org/zap"
-	"io"
 	"net/http"
 	"time"
 )
-
-const publishDefaultTimeout = 10000
-
-func init() {
-
-}
 
 type Request struct {
 	Subject     string        `json:"subject,omitempty"`
@@ -31,8 +24,15 @@ type Request struct {
 
 func (Request) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID:  "http.handlers.nats_request",
-		New: func() caddy.Module { return new(Request) },
+		ID: "http.handlers.nats_request",
+		New: func() caddy.Module {
+			// Default values
+			m := &Request{
+				Timeout:     1 * time.Second,
+				ServerAlias: "default",
+			}
+			return m
+		},
 	}
 }
 
@@ -70,70 +70,38 @@ func (p Request) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		return fmt.Errorf("NATS server alias %s not found", p.ServerAlias)
 	}
 
-	msg, err := p.natsMsgForHttpRequest(r, subj, server)
+	msg, err := common.NatsMsgForHttpRequest(r, subj)
 	if err != nil {
 		return err
 	}
 
-	_, err = server.Conn.RequestMsg(msg, publishDefaultTimeout)
-	// TODO: handle response
+	resp, err := server.Conn.RequestMsg(msg, p.Timeout)
 	if err != nil {
-		return fmt.Errorf("could not publish NATS message: %w", err)
+		return fmt.Errorf("could not request NATS message: %w", err)
 	}
-	return next.ServeHTTP(w, r)
+
+	if err == nats.ErrNoResponders {
+		w.WriteHeader(http.StatusNotFound)
+		p.logger.Warn("No Responders for NATS subject - answering with HTTP Status Not Found.", zap.String("subject", subj))
+		return err
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return err
+	}
+
+	for k, headers := range resp.Header {
+		for _, header := range headers {
+			w.Header().Add(k, header)
+		}
+	}
+	_, err = w.Write(resp.Data)
+	if err != nil {
+		return fmt.Errorf("could not write response back to HTTP Writer: %w", err)
+	}
+
+	// we are done :)
+	return nil
 }
-
-func (p *Request) natsMsgForHttpRequest(r *http.Request, subject string, server *natsbridge.NatsServer) (*nats.Msg, error) {
-	var msg *nats.Msg
-	// TODO: real message size limit of NATS here
-
-	b, _ := io.ReadAll(r.Body)
-
-	headers := nats.Header(r.Header)
-	for k, v := range common.ExtraNatsMsgHeadersFromContext(r.Context()) {
-		headers.Add(k, v)
-	}
-	msg = &nats.Msg{
-		Subject: subject,
-		Header:  headers,
-		Data:    b,
-	}
-
-	msg.Header.Add("X-NatsBridge-Method", r.Method)
-	msg.Header.Add("X-NatsBridge-UrlPath", r.URL.Path)
-	msg.Header.Add("X-NatsBridge-UrlQuery", r.URL.RawQuery)
-	return msg, nil
-}
-
-//
-//func (p *Publish) natsRequestReply(subject string, r *http.Request, w http.ResponseWriter) error {
-//	msg, err := p.natsMsgForHttpRequest(r, subject)
-//	if err != nil {
-//		return err
-//	}
-//	m, err := p.app.conn.RequestMsg(msg, time.Duration(p.Timeout)*time.Millisecond)
-//
-//	// nats.ErrMaxPayload
-//
-//	//data, err := io.ReadAll(r.Body)
-//	//if err != nil {
-//	//	return err
-//	//}
-//
-//	//os.AddLink()
-//	// TODO: Make error handlers configurable
-//	if err == nats.ErrNoResponders {
-//		w.WriteHeader(http.StatusNotFound)
-//		return err
-//	} else if err != nil {
-//		w.WriteHeader(http.StatusInternalServerError)
-//		return err
-//	}
-//
-//	_, err = w.Write(m.Data)
-//
-//	return err
-//}
 
 var (
 	_ caddyhttp.MiddlewareHandler = (*Request)(nil)

@@ -7,10 +7,7 @@ import (
 )
 
 func ParseRequestHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
-	var p = Request{
-		//Timeout:     publishDefaultTimeout,
-		ServerAlias: "default",
-	}
+	var p = Request{}
 	err := p.UnmarshalCaddyfile(h.Dispenser)
 	return p, err
 }

@@ -1,11 +1,11 @@
-package integration
+package body_jetstream_test
 
 import (
 	"bytes"
 	"fmt"
-	"github.com/caddyserver/caddy/v2/caddytest"
 	"github.com/nats-io/nats.go"
 	_ "github.com/sandstorm/caddy-nats-bridge"
+	"github.com/sandstorm/caddy-nats-bridge/integrationtest"
 	"net/http"
 	"testing"
 	"time"
@@ -32,8 +32,8 @@ func TestPublishRequestToNatsWithBodyJetstream(t *testing.T) {
 			description: "msg data should be empty and JetStream should contain HTTP Body",
 			buildHttpRequest: func(t *testing.T) *http.Request {
 				body := []byte("my request body")
-				req, err := http.NewRequest("POST", "http://localhost:8889/test/hi", bytes.NewReader(body))
-				failOnErr("Error creating request: %w", err, t)
+				req, err := http.NewRequest("POST", "http://127.0.0.1:8889/test/hi", bytes.NewReader(body))
+				integrationtest.FailOnErr("Error creating request: %w", err, t)
 
 				req.Header.Add("Custom-Header", "MyValue")
 				return req
@@ -60,11 +60,11 @@ func TestPublishRequestToNatsWithBodyJetstream(t *testing.T) {
 				}
 				// Read from X-Large-Body-Id
 				js, err := nc.JetStream()
-				failOnErr("Error getting JetStream Client: %s", err, t)
+				integrationtest.FailOnErr("Error getting JetStream Client: %s", err, t)
 				os, err := js.ObjectStore(bucket)
-				failOnErr("Error getting ObjectStore "+bucket+": %s", err, t)
+				integrationtest.FailOnErr("Error getting ObjectStore "+bucket+": %s", err, t)
 				resBytes, err := os.GetBytes(id)
-				failOnErr("Error getting Key from ObjectStore: %s", err, t)
+				integrationtest.FailOnErr("Error getting Key from ObjectStore: %s", err, t)
 
 				expected := "my request body"
 
@@ -76,8 +76,8 @@ func TestPublishRequestToNatsWithBodyJetstream(t *testing.T) {
 		{
 			description: "for requests without body, no headers should be added.",
 			buildHttpRequest: func(t *testing.T) *http.Request {
-				req, err := http.NewRequest("GET", "http://localhost:8889/test/hi", nil)
-				failOnErr("Error creating request: %w", err, t)
+				req, err := http.NewRequest("GET", "http://127.0.0.1:8889/test/hi", nil)
+				integrationtest.FailOnErr("Error creating request: %w", err, t)
 
 				return req
 			},
@@ -106,22 +106,22 @@ func TestPublishRequestToNatsWithBodyJetstream(t *testing.T) {
 
 		// TODO realistic case with Transfer-Encoding chunked:
 		//// // NOTE: we need to use bufio.NewReader, to enforce a Transfer-Encoding=chunked. See net.http.NewRequestWithContext from Go Stdlib.
-		//				req, err := http.NewRequest("POST", "http://localhost:8889/test/hi", bufio.NewReader(strings.NewReader("Small Request Body, but chunked transfer encoding")))
+		//				req, err := http.NewRequest("POST", "http://127.0.0.1:8889/test/hi", bufio.NewReader(strings.NewReader("Small Request Body, but chunked transfer encoding")))
 		//				req.Header.Add("Transfer-Encoding", "chunked")
 	}
 
 	// we share the same NATS Server and Caddy Server for all testcases
-	_, nc := StartTestNats(t)
-	caddyTester := caddytest.NewTester(t)
+	_, nc := integrationtest.StartTestNats(t)
+	caddyTester := integrationtest.NewCaddyTester(t)
 
 	for _, testcase := range cases {
 		t.Run(testcase.description, func(t *testing.T) {
 
 			subscription, err := nc.SubscribeSync("greet.>")
 			defer subscription.Unsubscribe()
-			failOnErr("error subscribing to greet.>: %w", err, t)
+			integrationtest.FailOnErr("error subscribing to greet.>: %w", err, t)
 
-			caddyTester.InitServer(fmt.Sprintf(defaultCaddyConf+`
+			caddyTester.InitServer(fmt.Sprintf(integrationtest.DefaultCaddyConf+`
 				:8889 {
 					%s
 				}

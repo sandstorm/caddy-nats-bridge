@@ -1,15 +1,15 @@
-package integration
+package integrationtest
 
 import (
 	jsonMod "encoding/json"
 	"fmt"
+	"github.com/caddyserver/caddy/v2/caddytest"
+	_ "github.com/sandstorm/caddy-nats-bridge"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/caddyserver/caddy/v2/caddytest"
 )
 
 // TestCaddyfileAdaptToJSON tests the caddyfile parser (and generating the internal JSON representation for it)

@@ -5,11 +5,9 @@ import (
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
-	"github.com/nats-io/nats.go"
 	"github.com/sandstorm/caddy-nats-bridge/common"
 	"github.com/sandstorm/caddy-nats-bridge/natsbridge"
 	"go.uber.org/zap"
-	"io"
 	"net/http"
 )
 
@@ -55,7 +53,7 @@ func (p Publish) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		return fmt.Errorf("NATS server alias %s not found", p.ServerAlias)
 	}
 
-	msg, err := p.natsMsgForHttpRequest(r, subj, server)
+	msg, err := common.NatsMsgForHttpRequest(r, subj)
 	if err != nil {
 		return err
 	}
@@ -64,28 +62,9 @@ func (p Publish) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 	if err != nil {
 		return fmt.Errorf("could not publish NATS message: %w", err)
 	}
+
+	// TODO: wiretap mode :) -> Response to NATS.
 	return next.ServeHTTP(w, r)
-}
-
-func (p *Publish) natsMsgForHttpRequest(r *http.Request, subject string, server *natsbridge.NatsServer) (*nats.Msg, error) {
-	var msg *nats.Msg
-
-	b, _ := io.ReadAll(r.Body)
-
-	headers := nats.Header(r.Header)
-	for k, v := range common.ExtraNatsMsgHeadersFromContext(r.Context()) {
-		headers.Add(k, v)
-	}
-	msg = &nats.Msg{
-		Subject: subject,
-		Header:  headers,
-		Data:    b,
-	}
-
-	msg.Header.Add("X-NatsBridge-Method", r.Method)
-	msg.Header.Add("X-NatsBridge-UrlPath", r.URL.Path)
-	msg.Header.Add("X-NatsBridge-UrlQuery", r.URL.RawQuery)
-	return msg, nil
 }
 
 var (

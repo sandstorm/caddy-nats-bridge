@@ -14,7 +14,7 @@ set -e
 
 function run-tests() {
   go mod tidy
-  go test -v github.com/sandstorm/caddy-nats-bridge/integration
+  go test -v github.com/sandstorm/caddy-nats-bridge/...
 }
 
 

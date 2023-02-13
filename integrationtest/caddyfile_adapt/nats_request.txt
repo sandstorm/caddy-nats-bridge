@@ -34,7 +34,6 @@ localhost {
 															"handle": [
 																{
 																	"handler": "nats_request",
-																	"serverAlias": "default",
 																	"subject": "hello_service.{nats.subject.1}"
 																}
 															]

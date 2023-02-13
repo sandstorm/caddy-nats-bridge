@@ -1,10 +1,10 @@
-package integration
+package subscribe_test
 
 import (
 	"fmt"
-	"github.com/caddyserver/caddy/v2/caddytest"
 	"github.com/nats-io/nats.go"
 	_ "github.com/sandstorm/caddy-nats-bridge"
+	"github.com/sandstorm/caddy-nats-bridge/integrationtest"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,12 +15,11 @@ import (
 // TestSubscribeRequestToNats converts a NATS message to a HTTP request.
 // depending on whether a NATS response subject is known, it will handle the response or not.
 //
-//	      	          ┌──────────────┐    HTTP Request: /test
+//		      	          ┌──────────────┐    HTTP Request: /test
 //		─────────────────▶│ Caddy /test  │ ─────────────────▶
 //		NATS subscription │ nats_publish │ ◀─────── Resp
 //		 greet.*          └──────────────┘
-//
-// optional resp◀───────
+//	 optional resp◀───────
 func TestSubscribeRequestToNats(t *testing.T) {
 	type testCase struct {
 		description                string
@@ -185,8 +184,8 @@ func TestSubscribeRequestToNats(t *testing.T) {
 	}
 
 	// we share the same NATS Server and Caddy Server for all testcases
-	_, nc := StartTestNats(t)
-	caddyTester := caddytest.NewTester(t)
+	_, nc := integrationtest.StartTestNats(t)
+	caddyTester := integrationtest.NewCaddyTester(t)
 
 	for _, testcase := range cases {
 		t.Run(testcase.description, func(t *testing.T) {
@@ -201,7 +200,7 @@ func TestSubscribeRequestToNats(t *testing.T) {
 			}))
 			t.Cleanup(svr.Close)
 
-			caddyTester.InitServer(fmt.Sprintf(defaultCaddyConf+`
+			caddyTester.InitServer(fmt.Sprintf(integrationtest.DefaultCaddyConf+`
 				:8889 {
 					log
 					%s

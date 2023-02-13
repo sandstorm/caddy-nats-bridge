@@ -1,10 +1,10 @@
-package integration
+package request_test
 
 import (
 	"fmt"
-	"github.com/caddyserver/caddy/v2/caddytest"
 	"github.com/nats-io/nats.go"
 	_ "github.com/sandstorm/caddy-nats-bridge"
+	"github.com/sandstorm/caddy-nats-bridge/integrationtest"
 	"io"
 	"net/http"
 	"testing"
@@ -91,17 +91,17 @@ func TestRequestToNats(t *testing.T) {
 	}
 
 	// we share the same NATS Server and Caddy Server for all testcases
-	_, nc := StartTestNats(t)
-	caddyTester := caddytest.NewTester(t)
+	_, nc := integrationtest.StartTestNats(t)
+	caddyTester := integrationtest.NewCaddyTester(t)
 
 	for _, testcase := range cases {
 		t.Run(testcase.description, func(t *testing.T) {
 
 			subscription, err := nc.SubscribeSync("greet.>")
 			defer subscription.Unsubscribe()
-			failOnErr("error subscribing to greet.>: %w", err, t)
+			integrationtest.FailOnErr("error subscribing to greet.>: %w", err, t)
 
-			caddyTester.InitServer(fmt.Sprintf(defaultCaddyConf+`
+			caddyTester.InitServer(fmt.Sprintf(integrationtest.DefaultCaddyConf+`
 				:8889 {
 					%s
 				}

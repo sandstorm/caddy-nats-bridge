@@ -1,7 +1,6 @@
-package integration
+package integrationtest
 
 import (
-	"github.com/caddyserver/caddy/v2/caddytest"
 	"testing"
 	"time"
 )
@@ -23,16 +22,17 @@ func TestNats(t *testing.T) {
 
 // TestCaddy experiments with caddy server in a testcase
 func TestCaddy(t *testing.T) {
-	tester := caddytest.NewTester(t)
+	tester := NewCaddyTester(t)
 	tester.InitServer(`
 		{
+			default_bind 127.0.0.1
 			http_port 8889
 			admin localhost:2999
 		}
-		:8889 {
+		127.0.0.1:8889 {
 			respond "Hello"
 		}
 	`, "caddyfile")
 
-	tester.AssertGetResponse("http://localhost:8889", 200, "Hello")
+	tester.AssertGetResponse("http://127.0.0.1:8889", 200, "Hello")
 }
