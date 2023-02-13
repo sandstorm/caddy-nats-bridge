@@ -41,7 +41,7 @@ type NatsServer struct {
 // CaddyModule returns the Caddy module information.
 func (app NatsBridgeApp) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID: "nats",
+		ID: "natsbridge",
 		New: func() caddy.Module {
 			app := new(NatsBridgeApp)
 			app.Servers = make(map[string]*NatsServer)

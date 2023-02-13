@@ -15,11 +15,12 @@ import (
 // TestSubscribeRequestToNats converts a NATS message to a HTTP request.
 // depending on whether a NATS response subject is known, it will handle the response or not.
 //
-//       	          ┌──────────────┐    HTTP Request: /test
-//	─────────────────▶│ Caddy /test  │ ─────────────────▶
-//	NATS subscription │ nats_publish │X◀─────── Resp
-//	 greet.*          └──────────────┘
-
+//	      	          ┌──────────────┐    HTTP Request: /test
+//		─────────────────▶│ Caddy /test  │ ─────────────────▶
+//		NATS subscription │ nats_publish │ ◀─────── Resp
+//		 greet.*          └──────────────┘
+//
+// optional resp◀───────
 func TestSubscribeRequestToNats(t *testing.T) {
 	type testCase struct {
 		description                string
@@ -207,11 +208,14 @@ func TestSubscribeRequestToNats(t *testing.T) {
 				}
 			`, testcase.GlobalNatsCaddyfileSnippet, testcase.CaddyfileSnippet(svr)), "caddyfile")
 
+			// send the actual NATS request
 			natsResultChan := make(chan error)
 			go func() {
 				natsResultChan <- testcase.sendNatsRequest(nc)
 			}()
 
+			// wait until both NATS and HTTP goroutines are finished;
+			// or any of them returns an error.
 			wait := 2
 			for {
 				select {

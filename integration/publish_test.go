@@ -31,14 +31,14 @@ const defaultCaddyConf = `
 }
 `
 
-// TestPublishRequestToNats converts a HTTP request to a NATS Publication.
+// TestPublishToNats converts a HTTP request to a NATS Publication.
 // It does not expect a response.
 //
 //	              ┌──────────────┐    HTTP: /test
 //	◀─────────────│ Caddy /test  │◀───────
 //	NATS subject  │ nats_publish │
 //	 greet.*      └──────────────┘
-func TestPublishRequestToNats(t *testing.T) {
+func TestPublishToNats(t *testing.T) {
 	type testCase struct {
 		description       string
 		buildHttpRequest  func(t *testing.T) *http.Request
