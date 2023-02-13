@@ -12,6 +12,7 @@ import (
 	"github.com/caddyserver/caddy/v2/caddytest"
 )
 
+// TestCaddyfileAdaptToJSON tests the caddyfile parser (and generating the internal JSON representation for it)
 func TestCaddyfileAdaptToJSON(t *testing.T) {
 	// load the list of test files from the dir
 	files, err := os.ReadDir("./caddyfile_adapt")
