@@ -27,32 +27,32 @@ func TestAddNatsPublishVarsToReplacer(t *testing.T) {
 	tests := []test{
 
 		// Basic subject mapping
-		{req: reqPath("/foo/bar"), input: "{nats.subject}", want: "foo.bar"},
-		{req: reqPath("/foo/bar/bat/baz"), input: "{nats.subject}", want: "foo.bar.bat.baz"},
-		{req: reqPath("/foo/bar/bat/baz?query=true"), input: "{nats.subject}", want: "foo.bar.bat.baz"},
-		{req: reqPath("/foo/bar"), input: "prefix.{nats.subject}.suffix", want: "prefix.foo.bar.suffix"},
+		{req: reqPath("/foo/bar"), input: "{http.request.uri.path.asNatsSubject}", want: "foo.bar"},
+		{req: reqPath("/foo/bar/bat/baz"), input: "{http.request.uri.path.asNatsSubject}", want: "foo.bar.bat.baz"},
+		{req: reqPath("/foo/bar/bat/baz?query=true"), input: "{http.request.uri.path.asNatsSubject}", want: "foo.bar.bat.baz"},
+		{req: reqPath("/foo/bar"), input: "prefix.{http.request.uri.path.asNatsSubject}.suffix", want: "prefix.foo.bar.suffix"},
 
 		// Segment placeholders
-		{req: reqPath("/foo/bar"), input: "{nats.subject.0}", want: "foo"},
-		{req: reqPath("/foo/bar"), input: "{nats.subject.1}", want: "bar"},
+		{req: reqPath("/foo/bar"), input: "{http.request.uri.path.asNatsSubject.0}", want: "foo"},
+		{req: reqPath("/foo/bar"), input: "{http.request.uri.path.asNatsSubject.1}", want: "bar"},
 
 		// Segment Ranges
-		{req: reqPath("/foo/bar/bat/baz"), input: "{nats.subject.0:}", want: "foo.bar.bat.baz"},
-		{req: reqPath("/foo/bar/bat/baz"), input: "{nats.subject.1:}", want: "bar.bat.baz"},
-		{req: reqPath("/foo/bar/bat/baz"), input: "{nats.subject.2:}", want: "bat.baz"},
-		{req: reqPath("/foo/bar/bat/baz"), input: "{nats.subject.1:3}", want: "bar.bat"},
-		{req: reqPath("/foo/bar/bat/baz"), input: "{nats.subject.0:3}", want: "foo.bar.bat"},
-		{req: reqPath("/foo/bar/bat/baz"), input: "{nats.subject.0:4}", want: "foo.bar.bat.baz"},
-		{req: reqPath("/foo/bar/bat/baz"), input: "{nats.subject.:3}", want: "foo.bar.bat"},
+		{req: reqPath("/foo/bar/bat/baz"), input: "{http.request.uri.path.asNatsSubject.0:}", want: "foo.bar.bat.baz"},
+		{req: reqPath("/foo/bar/bat/baz"), input: "{http.request.uri.path.asNatsSubject.1:}", want: "bar.bat.baz"},
+		{req: reqPath("/foo/bar/bat/baz"), input: "{http.request.uri.path.asNatsSubject.2:}", want: "bat.baz"},
+		{req: reqPath("/foo/bar/bat/baz"), input: "{http.request.uri.path.asNatsSubject.1:3}", want: "bar.bat"},
+		{req: reqPath("/foo/bar/bat/baz"), input: "{http.request.uri.path.asNatsSubject.0:3}", want: "foo.bar.bat"},
+		{req: reqPath("/foo/bar/bat/baz"), input: "{http.request.uri.path.asNatsSubject.0:4}", want: "foo.bar.bat.baz"},
+		{req: reqPath("/foo/bar/bat/baz"), input: "{http.request.uri.path.asNatsSubject.:3}", want: "foo.bar.bat"},
 
 		// Out of bounds ranges
-		{req: reqPath("/foo/bar/bat/baz"), input: "{nats.subject.0:18}", want: ""},
-		{req: reqPath("/foo/bar/bat/baz"), input: "{nats.subject.-1:}", want: ""},
+		{req: reqPath("/foo/bar/bat/baz"), input: "{http.request.uri.path.asNatsSubject.0:18}", want: ""},
+		{req: reqPath("/foo/bar/bat/baz"), input: "{http.request.uri.path.asNatsSubject.-1:}", want: ""},
 	}
 
 	for _, tc := range tests {
 		repl := caddy.NewReplacer()
-		addNATSPublishVarsToReplacer(repl, tc.req)
+		AddNATSPublishVarsToReplacer(repl, tc.req)
 		got := repl.ReplaceAll(tc.input, "")
 		if !reflect.DeepEqual(tc.want, got) {
 			t.Errorf("expected: %v, got: %v", tc.want, got)
@@ -70,31 +70,31 @@ func TestAddNatsSubscribeVarsToReplacer(t *testing.T) {
 
 	tests := []test{
 		// Basic subject mapping
-		{msg: nats.NewMsg("foo.bar"), input: "{nats.path}", want: "foo/bar"},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.path}", want: "foo/bar/bat/baz"},
-		{msg: nats.NewMsg("foo.bar"), input: "prefix/{nats.path}/suffix", want: "prefix/foo/bar/suffix"},
+		{msg: nats.NewMsg("foo.bar"), input: "{nats.subject.asUriPath}", want: "foo/bar"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath}", want: "foo/bar/bat/baz"},
+		{msg: nats.NewMsg("foo.bar"), input: "prefix/{nats.subject.asUriPath}/suffix", want: "prefix/foo/bar/suffix"},
 
 		// // Segment placeholders
-		{msg: nats.NewMsg("foo.bar"), input: "{nats.path.0}", want: "foo"},
-		{msg: nats.NewMsg("foo.bar"), input: "{nats.path.1}", want: "bar"},
+		{msg: nats.NewMsg("foo.bar"), input: "{nats.subject.asUriPath.0}", want: "foo"},
+		{msg: nats.NewMsg("foo.bar"), input: "{nats.subject.asUriPath.1}", want: "bar"},
 
 		// // Segment Ranges
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.path.0:}", want: "foo/bar/bat/baz"},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.path.1:}", want: "bar/bat/baz"},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.path.2:}", want: "bat/baz"},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.path.1:3}", want: "bar/bat"},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.path.0:3}", want: "foo/bar/bat"},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.path.:3}", want: "foo/bar/bat"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.0:}", want: "foo/bar/bat/baz"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.1:}", want: "bar/bat/baz"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.2:}", want: "bat/baz"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.1:3}", want: "bar/bat"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.0:3}", want: "foo/bar/bat"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.:3}", want: "foo/bar/bat"},
 
 		// Out of bounds ranges
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.path.0:18}", want: ""},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.path.:18}", want: ""},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.path.-1:}", want: ""},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.0:18}", want: ""},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.:18}", want: ""},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.-1:}", want: ""},
 	}
 
 	for _, tc := range tests {
 		repl := caddy.NewReplacer()
-		addNatsSubscribeVarsToReplacer(repl, tc.msg)
+		AddNatsSubscribeVarsToReplacer(repl, tc.msg)
 		got := repl.ReplaceAll(tc.input, "")
 		if !reflect.DeepEqual(tc.want, got) {
 			t.Errorf("expected: %v, got: %v", tc.want, got)

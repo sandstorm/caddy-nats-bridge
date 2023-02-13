@@ -41,7 +41,7 @@ func (p *Publish) Provision(ctx caddy.Context) error {
 
 func (p Publish) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer)
-	//addNATSPublishVarsToReplacer(repl, r)
+	common.AddNATSPublishVarsToReplacer(repl, r)
 
 	//TODO: What method is best here? ReplaceAll vs ReplaceWithErr?
 	subj := repl.ReplaceAll(p.Subject, "")

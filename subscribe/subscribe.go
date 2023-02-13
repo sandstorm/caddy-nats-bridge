@@ -80,7 +80,7 @@ func (s *Subscribe) Unsubscribe(conn *nats.Conn) error {
 
 func (s *Subscribe) handler(msg *nats.Msg) {
 	repl := caddy.NewReplacer()
-	// TODO: addNatsSubscribeVarsToReplacer(repl, msg)
+	common.AddNatsSubscribeVarsToReplacer(repl, msg)
 
 	url := repl.ReplaceAll(s.URL, "")
 	method := repl.ReplaceAll(s.Method, "")

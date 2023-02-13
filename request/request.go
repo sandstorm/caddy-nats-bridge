@@ -51,19 +51,13 @@ func (p *Request) Provision(ctx caddy.Context) error {
 
 func (p Request) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer)
-	//addNATSPublishVarsToReplacer(repl, r)
+	common.AddNATSPublishVarsToReplacer(repl, r)
 
 	//TODO: What method is best here? ReplaceAll vs ReplaceWithErr?
 	subj := repl.ReplaceAll(p.Subject, "")
 
-	//TODO: Check max msg size
-
 	//p.logger.Debug("publishing NATS message", zap.String("subject", subj), zap.Bool("with_reply", p.WithReply), zap.Int64("timeout", p.Timeout))
 	p.logger.Debug("publishing NATS message", zap.String("subject", subj))
-
-	/*if p.WithReply {
-		return p.natsRequestReply(subj, r, w)
-	}*/
 
 	server, ok := p.app.Servers[p.ServerAlias]
 	if !ok {

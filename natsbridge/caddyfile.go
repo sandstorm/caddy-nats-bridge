@@ -77,33 +77,6 @@ func (app *NatsBridgeApp) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				}
 				jsonHandler := caddyconfig.JSONModuleObject(s, "handler", s.CaddyModule().ID.Name(), nil)
 				server.HandlersRaw = append(server.HandlersRaw, jsonHandler)
-
-			/*case "reply":
-				s, err := parseSubscribeHandler(d)
-				s.WithReply = true
-				if err != nil {
-					return err
-				}
-				jsonHandler := caddyconfig.JSONModuleObject(s, "handler", s.CaddyModule().ID.Name(), nil)
-				app.HandlersRaw = append(app.HandlersRaw, jsonHandler)
-
-			case "queue_subscribe":
-				s, err := parseQueueSubscribeHandler(d)
-				if err != nil {
-					return err
-				}
-				jsonHandler := caddyconfig.JSONModuleObject(s, "handler", s.CaddyModule().ID.Name(), nil)
-				app.HandlersRaw = append(app.HandlersRaw, jsonHandler)
-
-			case "queue_reply":
-				s, err := parseQueueSubscribeHandler(d)
-				s.WithReply = true
-				if err != nil {
-					return err
-				}
-				jsonHandler := caddyconfig.JSONModuleObject(s, "handler", s.CaddyModule().ID.Name(), nil)
-				app.HandlersRaw = append(app.HandlersRaw, jsonHandler)*/
-
 			default:
 				return d.Errf("unrecognized subdirective: %s", d.Val())
 			}

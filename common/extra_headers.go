@@ -6,10 +6,10 @@ import (
 
 type ExtraNatsMsgHeaders map[string]string
 
-const ExtraNatsMsgHeadersKey = "ExtraNatsMsgHeaders"
+const extraNatsMsgHeadersKey = "ExtraNatsMsgHeaders"
 
 func ExtraNatsMsgHeadersFromContext(ctx context.Context) ExtraNatsMsgHeaders {
-	extraMsgHeaders, ok := ctx.Value(ExtraNatsMsgHeadersKey).(ExtraNatsMsgHeaders)
+	extraMsgHeaders, ok := ctx.Value(extraNatsMsgHeadersKey).(ExtraNatsMsgHeaders)
 	if !ok {
 		return make(ExtraNatsMsgHeaders)
 	}
@@ -17,5 +17,5 @@ func ExtraNatsMsgHeadersFromContext(ctx context.Context) ExtraNatsMsgHeaders {
 }
 
 func (h ExtraNatsMsgHeaders) StoreInCtx(ctx context.Context) context.Context {
-	return context.WithValue(ctx, ExtraNatsMsgHeadersKey, h)
+	return context.WithValue(ctx, extraNatsMsgHeadersKey, h)
 }

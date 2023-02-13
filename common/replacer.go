@@ -10,12 +10,12 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-func addNATSPublishVarsToReplacer(repl *caddy.Replacer, req *http.Request) {
+func AddNATSPublishVarsToReplacer(repl *caddy.Replacer, req *http.Request) {
 	natsVars := func(key string) (any, bool) {
 		if req != nil {
 			switch key {
 			// generated nats subject
-			case "nats.subject":
+			case "http.request.uri.path.asNatsSubject":
 				p := strings.Trim(req.URL.Path, "/")
 				return strings.ReplaceAll(p, "/", "."), true
 			}
@@ -38,12 +38,12 @@ func addNATSPublishVarsToReplacer(repl *caddy.Replacer, req *http.Request) {
 	repl.Map(natsVars)
 }
 
-func addNatsSubscribeVarsToReplacer(repl *caddy.Replacer, msg *nats.Msg) {
+func AddNatsSubscribeVarsToReplacer(repl *caddy.Replacer, msg *nats.Msg) {
 	natsVars := func(key string) (any, bool) {
 		if msg != nil {
 			switch key {
 			// generated nats path
-			case "nats.path":
+			case "nats.subject.asUriPath":
 				return strings.ReplaceAll(msg.Subject, ".", "/"), true
 			}
 
@@ -54,6 +54,11 @@ func addNatsSubscribeVarsToReplacer(repl *caddy.Replacer, msg *nats.Msg) {
 				s, ok := subSlice(parts, idxStr)
 
 				return strings.Join(s, "/"), ok
+			}
+
+			if strings.HasPrefix(key, natsHeaderReplPrefix) {
+				headerName := key[len(natsSubjectReplPrefix):]
+				return msg.Header.Get(headerName), true
 			}
 
 		}
@@ -113,5 +118,6 @@ func minMax(i int, min int, max int) int {
 	return int(math.Min(float64(max), math.Max(float64(min), float64(i))))
 }
 
-var natsSubjectReplPrefix = "nats.subject."
-var natsPathReplPrefix = "nats.path."
+var natsSubjectReplPrefix = "http.request.uri.path.asNatsSubject."
+var natsPathReplPrefix = "nats.subject.asUriPath."
+var natsHeaderReplPrefix = "nats.request.header."

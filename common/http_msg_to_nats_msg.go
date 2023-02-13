@@ -6,6 +6,10 @@ import (
 	"net/http"
 )
 
+// NatsMsgForHttpRequest creates a nats.Msg from an existing http.Request: the HTTP Request Body is transferred
+// to the NATS message Data, and the headers are transferred as well.
+//
+// Three special headers are added for the request method, URL path, and raw query.
 func NatsMsgForHttpRequest(r *http.Request, subject string) (*nats.Msg, error) {
 	var msg *nats.Msg
 	b, _ := io.ReadAll(r.Body)
