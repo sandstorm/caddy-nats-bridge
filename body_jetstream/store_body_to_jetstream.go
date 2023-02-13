@@ -54,14 +54,14 @@ func (sb *StoreBodyToJetStream) ServeHTTP(writer http.ResponseWriter, request *h
 		return fmt.Errorf("cannot read request body: %w", err)
 	}
 	if len(b) > 0 {
-		// because HTTP headers are changed in camelization ("X-NatsHttp" will become "X-Natshttp"), we need to store our
+		// because HTTP headers are changed in camelization ("X-NatsBridge" will become "X-NatsBridge"), we need to store our
 		// extra headers in the Request Context. This way, we can ensure the headers are set as they are configured.
 		// This wouldn't matter much if it was just internal usage; but we want to expose the header name in config (and
 		// it would be very weird if there were additional constraints on the header names)
 		extraNatsMsgHeaders := common.ExtraNatsMsgHeadersFromContext(request.Context())
-		extraNatsMsgHeaders["X-NatsHttp-Body-Bucket"] = sb.Bucket
+		extraNatsMsgHeaders["X-NatsBridge-Body-Bucket"] = sb.Bucket
 		id := nuid.Next()
-		extraNatsMsgHeaders["X-NatsHttp-Body-Id"] = id
+		extraNatsMsgHeaders["X-NatsBridge-Body-Id"] = id
 		request = request.WithContext(extraNatsMsgHeaders.StoreInCtx(request.Context()))
 
 		os, err := sb.objectStore()

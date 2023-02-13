@@ -25,6 +25,3 @@ func init() {
 	caddy.RegisterModule(body_jetstream.StoreBodyToJetStream{})
 	httpcaddyfile.RegisterHandlerDirective("store_body_to_jetstream", body_jetstream.ParseStoreBodyToJetstream)
 }
-
-// NatsBridgeApp connects caddy to a NATS server.
-//

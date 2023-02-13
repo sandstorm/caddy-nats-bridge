@@ -283,17 +283,17 @@ localhost {
 
 - HTTP Body = NATS Message Data
 - HTTP Headers = NATS Message Headers
-  - `X-NatsHttp-Method` header: contains the HTTP header `GET,POST,HEAD,...`
-  - `X-NatsHttp-UrlPath` header: URI path without query string
-  - `X-NatsHttp-UrlQuery` header: query string
-  - `X-NatsHttp-LargeBody-Bucket` header
-  - `X-NatsHttp-LargeBody-Id` header
+  - `X-NatsBridge-Method` header: contains the HTTP header `GET,POST,HEAD,...`
+  - `X-NatsBridge-UrlPath` header: URI path without query string
+  - `X-NatsBridge-UrlQuery` header: query string
+  - `X-NatsBridge-LargeBody-Bucket` header
+  - `X-NatsBridge-LargeBody-Id` header
 - NATS messages have a size limit of usually 1 MB (and 8 MB as hardcoded limit).
   In case the HTTP body is bigger, or alternatively, is submitted with `Transfer-Encoding: chunked` (so we do not know the size upfront);
   we do the following:
   - We store the HTTP body in the [JetStream Object Storage (EXPERIMENTAL)](https://docs.nats.io/using-nats/developer/develop_jetstream/object)
     for a few minutes; in a random key.
-  - The name of this KV Storage key is stored in the `X-NatsHttp-LargeBody-Id`.
+  - The name of this KV Storage key is stored in the `X-NatsBridge-LargeBody-Id`.
     - TODO: support for response body re-use based on cache etags?
 
 
@@ -308,9 +308,9 @@ localhost {
   - TODO: Re-use same cache entries if etags match?
 - TODO: is request / response streaming necessary???
 - All HTTP headers are passed through to NATS without modification
-- All Nats headers except "X-NatsHttp-...." are passed to HTTP without modification
-  - X-NatsHttp-Method
-  - X-NatsHttp-JSBodyId
+- All Nats headers except "X-NatsBridge-...." are passed to HTTP without modification
+  - X-NatsBridge-Method
+  - X-NatsBridge-JSBodyId
 - allow multiple NATS servers
 
 ## What's Next?

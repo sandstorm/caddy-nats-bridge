@@ -99,9 +99,9 @@ func (p *Request) natsMsgForHttpRequest(r *http.Request, subject string, server 
 		Data:    b,
 	}
 
-	msg.Header.Add("X-NatsHttp-Method", r.Method)
-	msg.Header.Add("X-NatsHttp-UrlPath", r.URL.Path)
-	msg.Header.Add("X-NatsHttp-UrlQuery", r.URL.RawQuery)
+	msg.Header.Add("X-NatsBridge-Method", r.Method)
+	msg.Header.Add("X-NatsBridge-UrlPath", r.URL.Path)
+	msg.Header.Add("X-NatsBridge-UrlQuery", r.URL.RawQuery)
 	return msg, nil
 }
 

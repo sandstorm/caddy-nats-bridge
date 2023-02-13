@@ -50,13 +50,13 @@ func TestPublishRequestToNatsWithBodyJetstream(t *testing.T) {
 				if len(msg.Data) > 0 {
 					t.Fatalf("Request Body should be empty. Actual data: %+v", string(msg.Data))
 				}
-				bucket := msg.Header.Get("X-NatsHttp-Body-Bucket")
+				bucket := msg.Header.Get("X-NatsBridge-Body-Bucket")
 				if len(bucket) == 0 {
-					t.Fatalf("X-NatsHttp-Body-Bucket not set or empty.")
+					t.Fatalf("X-NatsBridge-Body-Bucket not set or empty.")
 				}
-				id := msg.Header.Get("X-NatsHttp-Body-Id")
+				id := msg.Header.Get("X-NatsBridge-Body-Id")
 				if len(id) == 0 {
-					t.Fatalf("X-NatsHttp-Body-Id not set or empty.")
+					t.Fatalf("X-NatsBridge-Body-Id not set or empty.")
 				}
 				// Read from X-Large-Body-Id
 				js, err := nc.JetStream()
@@ -93,13 +93,13 @@ func TestPublishRequestToNatsWithBodyJetstream(t *testing.T) {
 				if len(msg.Data) > 0 {
 					t.Fatalf("Request Body should be empty. Actual data: %+v", string(msg.Data))
 				}
-				bucket := msg.Header.Get("X-NatsHttp-Body-Bucket")
+				bucket := msg.Header.Get("X-NatsBridge-Body-Bucket")
 				if len(bucket) != 0 {
-					t.Fatalf("X-NatsHttp-Body-Bucket is set, but should be empty.")
+					t.Fatalf("X-NatsBridge-Body-Bucket is set, but should be empty.")
 				}
-				id := msg.Header.Get("X-NatsHttp-Body-Id")
+				id := msg.Header.Get("X-NatsBridge-Body-Id")
 				if len(id) != 0 {
-					t.Fatalf("X-NatsHttp-Body-Id is set, but should be empty.")
+					t.Fatalf("X-NatsBridge-Body-Id is set, but should be empty.")
 				}
 			},
 		},

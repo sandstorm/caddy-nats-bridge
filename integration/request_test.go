@@ -30,7 +30,7 @@ func TestRequestToNats(t *testing.T) {
 	// Testcases
 	cases := []testCase{
 		{
-			description: "Simple GET request should keep headers and contain extra X-NatsHttp-Method and X-NatsHttp-UrlPath",
+			description: "Simple GET request should keep headers and contain extra X-NatsBridge-Method and X-NatsBridge-UrlPath",
 			sendHttpRequestAndAssertResponse: func() error {
 				// 1) send initial HTTP request (will be validated on the NATS handler side)
 				req, err := http.NewRequest("GET", "http://localhost:8889/test/hi", nil)
@@ -68,14 +68,14 @@ func TestRequestToNats(t *testing.T) {
 					t.Fatalf("Custom-Header not correct, expected 'MyValue', actual headers: %+v", msg.Header)
 				}
 
-				if msg.Header.Get("X-NatsHttp-Method") != "GET" {
-					t.Fatalf("X-NatsHttp-Method not correct, expected 'GET', actual headers: %+v", msg.Header)
+				if msg.Header.Get("X-NatsBridge-Method") != "GET" {
+					t.Fatalf("X-NatsBridge-Method not correct, expected 'GET', actual headers: %+v", msg.Header)
 				}
-				if msg.Header.Get("X-NatsHttp-UrlPath") != "/test/hi" {
-					t.Fatalf("X-NatsHttp-UrlPath not correct, expected '/test/hi', actual headers: %+v", msg.Header)
+				if msg.Header.Get("X-NatsBridge-UrlPath") != "/test/hi" {
+					t.Fatalf("X-NatsBridge-UrlPath not correct, expected '/test/hi', actual headers: %+v", msg.Header)
 				}
-				if msg.Header.Get("X-NatsHttp-UrlQuery") != "" {
-					t.Fatalf("X-NatsHttp-UrlQuery not correct, expected '', actual headers: %+v", msg.Header)
+				if msg.Header.Get("X-NatsBridge-UrlQuery") != "" {
+					t.Fatalf("X-NatsBridge-UrlQuery not correct, expected '', actual headers: %+v", msg.Header)
 				}
 
 				// 3) send NATS response (will be validated on the HTTP response side)
