@@ -1,4 +1,4 @@
-package publish
+package request
 
 import (
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -6,14 +6,16 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
 
-func ParsePublishHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
-	var p = Publish{
+func ParseRequestHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
+	var p = Request{
+		//WithReply: false,
+		//Timeout:     publishDefaultTimeout,
 		ServerAlias: "default",
 	}
 	err := p.UnmarshalCaddyfile(h.Dispenser)
 	return p, err
 }
-func (p *Publish) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+func (p *Request) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		if d.CountRemainingArgs() == 2 {
 			if !d.Args(&p.ServerAlias, &p.Subject) {
@@ -28,6 +30,16 @@ func (p *Publish) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 		for d.NextBlock(0) {
 			switch d.Val() {
+			/*case "timeout":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			t, err := strconv.Atoi(d.Val())
+			if err != nil {
+				return d.Err("timeout is not a valid integer")
+			}
+
+			p.Timeout = int64(t)*/
 			default:
 				return d.Errf("unrecognized subdirective: %s", d.Val())
 			}
