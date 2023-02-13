@@ -18,33 +18,23 @@ option for you.
 
 <!-- TOC -->
 * [Caddy-NATS-Bridge](#caddy-nats-bridge)
+  * [Concept Overview](#concept-overview)
   * [Installation](#installation)
   * [Getting Started](#getting-started)
   * [Connecting to NATS](#connecting-to-nats)
-  * [Connectivity Modes](#connectivity-modes)
-  * [Subscribing to a NATS subject](#subscribing-to-a-nats-subject)
+  * [NATS -> HTTP via `subscribe`](#nats----http-via-subscribe)
     * [Subscribe Placeholders](#subscribe-placeholders)
-    * [subscribe](#subscribe)
-      * [Syntax](#syntax)
-      * [Example](#example)
-    * [reply](#reply)
-      * [Syntax](#syntax-1)
-      * [Example](#example-1)
-    * [queue_subscribe](#queuesubscribe)
-      * [Syntax](#syntax-2)
-      * [Example](#example-2)
-    * [queue_reply](#queuereply)
-      * [Syntax](#syntax-3)
-      * [Example](#example-3)
+    * [Queue Groups](#queue-groups)
+  * [------------------------](#------------------------)
   * [Publishing to a NATS subject](#publishing-to-a-nats-subject)
     * [Publish Placeholders](#publish-placeholders)
     * [nats_publish](#natspublish)
-      * [Syntax](#syntax-4)
-      * [Example](#example-4)
+      * [Syntax](#syntax)
+      * [Example](#example)
       * [large HTTP payloads with store_body_to_jetstream](#large-http-payloads-with-storebodytojetstream)
     * [nats_request](#natsrequest)
-      * [Syntax](#syntax-5)
-      * [Example](#example-5)
+      * [Syntax](#syntax-1)
+      * [Example](#example-1)
       * [Format of the NATS message](#format-of-the-nats-message)
   * [Concept](#concept)
   * [What's Next?](#whats-next)
@@ -82,39 +72,77 @@ nats-server
 ```
 
 
-> :bulb: To try this example, `cd examples/nats-to-http-request; ./build-run.sh` 
+> :bulb: To try this example, `cd examples/getting-started; ./build-run.sh`
+> 
+> - [Caddyfile](./examples/getting-started/Caddyfile)
+> - [build-run.sh](./examples/getting-started/build-run.sh)
 
-Then create your Caddyfile:
+Then create and run your Caddyfile:
 
 ```nginx
+# run with: ./caddy run --config Caddyfile
+
 {
-  nats {
-    url 127.0.0.1:4222
-    clientName "My Caddy Server"
-    
-    # if something is received on 
-    subscribe hello GET https://localhost/datausa
-  }
+	nats {
+		url 127.0.0.1:4222
+		clientName "My Caddy Server"
+
+		# listens to "datausa.[drilldowns].[measures]" -> calls internal URL
+		subscribe datausa.> GET http://127.0.0.1:8888/datausa/{nats.subject.asUriPath.1}/{nats.subject.asUriPath.2}
+	}
 }
 
-localhost {
-  route /datausa {
-    https://datausa.io/api/data?drilldowns=Nation&measures=Population
-    respond "Hello, world"
-  }
+http://127.0.0.1:8888 {
+	# internal URL: "/datausa/[drilldowns]/[measures]"
+	handle /datausa/* {
+
+		# Reference for placeholders: https://caddyserver.com/docs/json/apps/http/#docs
+		rewrite * /api/data?drilldowns={http.request.uri.path.1}&measures={http.request.uri.path.2}
+
+		reverse_proxy https://datausa.io {
+			header_up Host {upstream_hostport}
+		}
+	}
+
+	route /weather/* {
+		nats_request cli.weather.{http.request.uri.path.1}
+	}
 }
+
 ```
 
-After running your custom built `caddy` server with this Caddyfile, you can
-then run the `nats` cli tool to test it out:
+Then, you can do a request with the `nats` CLI, and see that it is automatically converted to a HTTP Request:
 
-```sh
-nats req hello ""
+```bash
+nats req "datausa.Nation.Population" ""
 ```
+
+What has happened here?
+
+1. You sent a NATS request to the topic `datausa.Nation.Population`
+2. the Caddy-Nats-Bridge has subscribed to the above topic, and
+   routed the request to the internal URL `http://127.0.0.1:8888/datausa/Nation/Population`
+3. The rest is standard Caddy configuration - triggering the API call
+   `https://datausa.io/api/data?drilldowns=Nation&measures=Population`
+4. The HTTP response is then converted to a NATS reply.
+
+As a second example, you can start a fake NATS weather service using:
+
+```bash
+nats reply 'cli.weather.>' --command "curl -s wttr.in/{{2}}?format=3"
+```
+
+You can query this service via `nats request cli.weather.Dresden ""` to retrieve the current weather forecast.
+
+Because of the `nats_request` rule in the `Caddyfile` above, you can also request
+`http://127.0.0.1:8888/weather/Dresden` in your browser:
+1. You sent a HTTP request to Caddy
+2. This has been forwarded to the NATS topic `cli.weather.Dresden`, which is responded by the `nats reply` tool above.
+3. The NATS response is converted to a HTTP response.
 
 ## Connecting to NATS
 
-To connect to `nats`, simply use the `nats` global option in your Caddyfile with the URL of the NATS server:
+To connect to `nats`, use the `nats` global option in your Caddyfile with the URL of the NATS server:
 
 ```nginx
 {
@@ -124,11 +152,29 @@ To connect to `nats`, simply use the `nats` global option in your Caddyfile with
 }
 ```
 
-The `alias` is a server-reference which is relevant if you want to connect to two NATS servers at the same time.
+The `alias` is a server-reference which is relevant if you want to connect to two NATS servers at the same time. If
+omitted, the serverAlias `default` is used.
 
 To connect to multiple servers (NATS Cluster), separate them with `,` in the `url` parameter.
 
-On top, the following options are supported:
+The following connection options are supported for a server:
+
+- `url`: URL(s) pointing to a NATS cluster. `nats://`, `tls://`, `ws://`  and `wss://` URLs are all supportted,
+  if the NATS cluster supports them. multiple comma separated URLs can be specified, but they must be all pointing
+  to the same NATS cluster.
+- Authentication Options (only one of the ones below may be specified; in descending precedence):
+  - `userCredentialFile` a [User Credential file](https://docs.nats.io/using-nats/developer/connecting/creds) as
+    generated by `nsc` tool. You need this if you use the [Decentralized JWT Authentication/Authorization](https://docs.nats.io/running-a-nats-service/configuration/securing_nats/auth_intro/jwt)
+    of NATS.
+  - `nkeyCredentialFile` an [NKEY File](https://docs.nats.io/running-a-nats-service/configuration/securing_nats/auth_intro/nkey_auth)
+    as generated by `nk -gen user -pubout`. You need this if you use NKEY Authentication of NATS.
+  - (other authentication options are not supported right now, but we can add them if needed)
+- `clientName` name of the NATS client - this is useful for monitoring.
+- `inboxPrefix`. The "inbox" is the response subject for [request/reply](https://docs.nats.io/nats-concepts/core-nats/reqreply)
+  messaging. Your server operator might tell you that you need to use a different inbox prefix than the default `_INBOX`
+  for [security reasons](https://natsbyexample.com/examples/auth/private-inbox/cli).
+
+Configuration with all configuration options is specified below:
 
 ```nginx
 {
@@ -144,116 +190,74 @@ On top, the following options are supported:
 }
 ```
 
-TODO EXPLAIN
+## NATS -> HTTP via `subscribe`
 
-## Subscribing to a NATS subject
+`caddy-nats-bridge` supports subscribing to NATS subjects in a few different flavors, depending on your needs:
 
-`caddy-nats` supports subscribing to NATS subjects in a few different flavors,
-depending on your needs.
+- forward a NATS message to an HTTP endpoint, and replying the HTTP response back to the NATS sender.
+- forward a NATS message to an HTTP endpoint, without interest for the response (f.e. triggering a webhook).
+
+The two cases above are both handled with the single `subscribe` directive placed inside a global `nats` block.
+If the incoming [NATS Message](https://pkg.go.dev/github.com/nats-io/nats.go#Msg) has a `Reply` subject set,
+we forward the HTTP response back to the original sender. If not, we discard the HTTP response.
+
+We route the message inside Caddy to the matching `server` block (depending on the hostname). Then you can use
+further Caddy directives for processing the message.
+
+```nginx
+{
+  nats [alias] {
+    # add other server config here; at least URL is required.
+    url nats://127.0.0.1:4222
+    
+    subscribe [topic] [http_method] [http_url] {
+      [queue "queue group name"]
+    }
+    # example:
+    subscribe datausa.> GET http://127.0.0.1:8081/{nats.subject.asUriPath.1:} 
+  }
+}
+
+http://127.0.0.1:8081 {
+  # your normal NATS config for the server.
+}
+```
 
 ### Subscribe Placeholders
 
-All `subscribe` based directives (`subscribe`, `reply`, `queue_subscribe`, `queue_reply`) support the following `caddy` placeholders in the `method` and `url` arguments:
+The `subscribe` directive supports the following `caddy` placeholders in the `http_method` and `http_url` arguments:
 
-- `{nats.path}`: The subject of this message, with dots "." replaced with a slash "/" to make it easy to map to a URL.
-- `{nats.path.*}`: You can also select a segment of a path ex: `{nats.path.0}` or a subslice of a path: `{nats.path.2:}` or `{nats.path.2:7}` to have ultimate flexibility in what to forward onto the URL path.
+- `{nats.request.subject}`: The subject of this message. 
+  Example: `datausa.Nation.Population`
+- `{nats.request.subject.asUriPath}`: The subject of this message, with dots "." replaced with a slash "/" to make it easy to map to a URL.
+  Example: `datausa/Nation/Population`
+- `{nats.request.subject.*}`: You can also select a segment of a path by index (0-based): `{nats.request.subject.0}`  or a subslice of a path: `{nats.request.subject.2:}` or `{nats.request.subject.2:7}` to have ultimate flexibility how to build the URL string.
+  Examples:
+  ```
+  {nats.request.subject.0} => datausa
+  {nats.request.subject.1} => Nation
+  {nats.request.subject.1:} => Nation.Population
+  {nats.request.subject.0:1} => datausa.Nation
+  ```
+- `{nats.request.subject.asUriPath.*}`: You can also select a segment of a path by index (0-based): `{nats.request.subject.asUriPath.0}`  or a subslice of a path: `{nats.request.subject.asUriPath.2:}` or `{nats.request.subject.asUriPath.2:7}` to have ultimate flexibility how to build the URL string.
+  Examples:
+  ```
+  {nats.request.subject.asUriPath.0} => datausa
+  {nats.request.subject.asUriPath.1} => Nation
+  {nats.request.subject.asUriPath.1:} => Nation/Population
+  {nats.request.subject.asUriPath.0:1} => datausa/Nation
+  ```
+- `{nats.request.header.*}`: output the given NATS message header.
+  Example: `{nats.request.header.MyHeaderName}`
 
----
+### Queue Groups
 
-### subscribe
+If you want to take part in Load Balancing via [NATS Queue Groups](https://docs.nats.io/nats-concepts/core-nats/queue),
+you can specify the queue group to subscribe to via the nested `queue` directive inside the `subscribe` block.
 
-#### Syntax
-```nginx
-subscribe <subject> <method> <url>
-```
-
-`subscribe` will subscribe to the specific NATS subject (wildcards are
-supported) and forward the NATS payload to the specified URL inside the caddy
-web server. This directive does not care about the HTTP response, and is
-generally fire and forget.
-
-#### Example
-
-Subscribe to an event stream in NATS and call an HTTP endpoint:
-
-```nginx
-{
-  nats {
-      subscribe events.> POST https://localhost/nats_events/{nats.path.1:}
-  }
-}
-```
-
----
-
-### reply
-
-#### Syntax
-```nginx
-reply <subject> <method> <url>
-```
-
-`reply` will subscribe to the specific NATS subject and forward the NATS
-payload to the specified URL inside the caddy web server. This directive will
-then respond back to the nats message with the response body of the HTTP
-request.
-
-#### Example
-
-Respond to the `hello.world` NATS subject with the response of the `/hello/world` endpoint.
-
-```nginx
-{
-  nats {
-    reply hello.world GET https://localhost/hello/world
-  }
-}
-```
-
----
-
-### queue_subscribe
-
-#### Syntax
-```nginx
-queue_subscribe <subject> <queue> <method> <url>
-```
-`queue_subscribe` operates the same way as `subscribe`, but subscribes under a NATS [queue group](https://docs.nats.io/nats-concepts/core-nats/queue)
-
-#### Example
-
-Subscribe to a worker queue:
-
-```nginx
-{
-  nats {
-    queue_subscribe jobs.* workers_queue POST https://localhost/{nats.path}
-  }
-}
-```
-
----
-
-### queue_reply
-
-#### Syntax
-```nginx
-queue_reply <subject> <queue> <method> <url>
-```
-
-`queue_reply` operates the same way as `reply`, but subscribes under a NATS [queue group](https://docs.nats.io/nats-concepts/core-nats/queue)
-
-#### Example
-
-Subscribe to a worker queue, and respond to the NATS message:
-
-```nginx
-{
-  nats {
-    queue_reply jobs.* workers_queue POST https://localhost/{nats.path}
-  }
-}
-```
+------------------------
+------------------------
+------------------------
 
 ## Publishing to a NATS subject
 
@@ -353,6 +357,7 @@ localhost {
   - The name of this KV Storage key is stored in the `X-NatsBridge-LargeBody-Id`.
     - TODO: support for response body re-use based on cache etags?
 
+## Large Body stuff
 
 ## Concept
 

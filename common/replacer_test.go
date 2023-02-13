@@ -70,27 +70,38 @@ func TestAddNatsSubscribeVarsToReplacer(t *testing.T) {
 
 	tests := []test{
 		// Basic subject mapping
-		{msg: nats.NewMsg("foo.bar"), input: "{nats.subject.asUriPath}", want: "foo/bar"},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath}", want: "foo/bar/bat/baz"},
-		{msg: nats.NewMsg("foo.bar"), input: "prefix/{nats.subject.asUriPath}/suffix", want: "prefix/foo/bar/suffix"},
+		{msg: nats.NewMsg("foo.bar"), input: "{nats.request.subject.asUriPath}", want: "foo/bar"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.asUriPath}", want: "foo/bar/bat/baz"},
+		{msg: nats.NewMsg("foo.bar"), input: "prefix/{nats.request.subject.asUriPath}/suffix", want: "prefix/foo/bar/suffix"},
 
 		// // Segment placeholders
-		{msg: nats.NewMsg("foo.bar"), input: "{nats.subject.asUriPath.0}", want: "foo"},
-		{msg: nats.NewMsg("foo.bar"), input: "{nats.subject.asUriPath.1}", want: "bar"},
-		// TODO: nats.subject.0 etc -> also allow this.
+		{msg: nats.NewMsg("foo.bar"), input: "{nats.request.subject.0}", want: "foo"},
+		{msg: nats.NewMsg("foo.bar"), input: "{nats.request.subject.1}", want: "bar"},
+		{msg: nats.NewMsg("foo.bar"), input: "{nats.request.subject.asUriPath.0}", want: "foo"},
+		{msg: nats.NewMsg("foo.bar"), input: "{nats.request.subject.asUriPath.1}", want: "bar"},
+		// TODO: nats.request.subject.0 etc -> also allow this.
 
 		// // Segment Ranges
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.0:}", want: "foo/bar/bat/baz"},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.1:}", want: "bar/bat/baz"},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.2:}", want: "bat/baz"},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.1:3}", want: "bar/bat"},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.0:3}", want: "foo/bar/bat"},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.:3}", want: "foo/bar/bat"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.0:}", want: "foo.bar.bat.baz"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.1:}", want: "bar.bat.baz"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.2:}", want: "bat.baz"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.1:3}", want: "bar.bat"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.0:3}", want: "foo.bar.bat"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.:3}", want: "foo.bar.bat"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.asUriPath.0:}", want: "foo/bar/bat/baz"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.asUriPath.1:}", want: "bar/bat/baz"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.asUriPath.2:}", want: "bat/baz"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.asUriPath.1:3}", want: "bar/bat"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.asUriPath.0:3}", want: "foo/bar/bat"},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.asUriPath.:3}", want: "foo/bar/bat"},
 
 		// Out of bounds ranges
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.0:18}", want: ""},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.:18}", want: ""},
-		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.-1:}", want: ""},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.0:18}", want: ""},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.:18}", want: ""},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.-1:}", want: ""},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.asUriPath.0:18}", want: ""},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.asUriPath.:18}", want: ""},
+		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.request.subject.asUriPath.-1:}", want: ""},
 	}
 
 	for _, tc := range tests {
@@ -98,7 +109,7 @@ func TestAddNatsSubscribeVarsToReplacer(t *testing.T) {
 		AddNatsSubscribeVarsToReplacer(repl, tc.msg)
 		got := repl.ReplaceAll(tc.input, "")
 		if !reflect.DeepEqual(tc.want, got) {
-			t.Errorf("expected: %v, got: %v", tc.want, got)
+			t.Errorf("expected: %v, got: %v. Input: %s", tc.want, got, tc.input)
 		}
 	}
 }

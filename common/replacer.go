@@ -42,25 +42,34 @@ func AddNatsSubscribeVarsToReplacer(repl *caddy.Replacer, msg *nats.Msg) {
 	natsVars := func(key string) (any, bool) {
 		if msg != nil {
 			switch key {
+			case "nats.request.subject":
+				return msg.Subject, true
 			// generated nats path
-			case "nats.subject.asUriPath":
+			case "nats.request.subject.asUriPath":
 				return strings.ReplaceAll(msg.Subject, ".", "/"), true
 			}
 
-			// subject parts
-			if strings.HasPrefix(key, natsPathReplPrefix) {
-				idxStr := key[len(natsPathReplPrefix):]
+			if prefix := "nats.request.subject.asUriPath."; strings.HasPrefix(key, prefix) {
+				idxStr := key[len(prefix):]
 				parts := strings.Split(msg.Subject, ".")
 				s, ok := subSlice(parts, idxStr)
 
 				return strings.Join(s, "/"), ok
 			}
 
-			if strings.HasPrefix(key, natsHeaderReplPrefix) {
-				headerName := key[len(natsSubjectReplPrefix):]
-				return msg.Header.Get(headerName), true
+			// subject parts
+			if prefix := "nats.request.subject."; strings.HasPrefix(key, prefix) {
+				idxStr := key[len(prefix):]
+				parts := strings.Split(msg.Subject, ".")
+				s, ok := subSlice(parts, idxStr)
+
+				return strings.Join(s, "."), ok
 			}
 
+			if prefix := "nats.request.header."; strings.HasPrefix(key, prefix) {
+				headerName := key[len(prefix):]
+				return msg.Header.Get(headerName), true
+			}
 		}
 
 		return nil, false
@@ -119,5 +128,3 @@ func minMax(i int, min int, max int) int {
 }
 
 var natsSubjectReplPrefix = "http.request.uri.path.asNatsSubject."
-var natsPathReplPrefix = "nats.subject.asUriPath."
-var natsHeaderReplPrefix = "nats.request.header."

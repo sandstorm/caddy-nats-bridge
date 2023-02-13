@@ -1,0 +1,26 @@
+{
+	nats {
+		url 127.0.0.1:4222
+		clientName "My Caddy Server"
+
+		# listens to "datausa.[drilldowns].[measures]" -> calls internal URL
+		subscribe datausa.> GET http://127.0.0.1:8888/datausa/{nats.subject.asUriPath.1}/{nats.subject.asUriPath.2}
+	}
+}
+
+http://127.0.0.1:8888 {
+	# internal URL: "/datausa/[drilldowns]/[measures]"
+	handle /datausa/* {
+
+		# Reference for placeholders: https://caddyserver.com/docs/json/apps/http/#docs
+		rewrite * /api/data?drilldowns={http.request.uri.path.1}&measures={http.request.uri.path.2}
+
+		reverse_proxy https://datausa.io {
+			header_up Host {upstream_hostport}
+		}
+	}
+
+	route /weather/* {
+		nats_request cli.weather.{http.request.uri.path.1}
+	}
+}
