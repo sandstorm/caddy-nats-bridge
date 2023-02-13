@@ -144,7 +144,9 @@ func (s *Subscribe) prepareRequest(method string, rawURL string, body io.Reader,
 	}
 
 	req, err := http.NewRequest(method, rawURL, body)
-	req.Header = http.Header(header)
+	if header != nil {
+		req.Header = http.Header(header)
+	}
 
 	req.RequestURI = u.Path
 	req.RemoteAddr = s.conn.ConnectedAddr()

@@ -1,6 +1,13 @@
-# Caddy-NATS
+# Caddy-NATS-Bridge
 
-`caddy-nats` is a caddy module that allows the caddy server to interact with a
+> NOTE: This package is originally based on https://github.com/codegangsta/caddy-nats,
+> which has greatly inspired me to work on this topic. Because we want to use this
+> package in our core infrastructure very heavily and I had some specific ideas
+> around the API, I created my own package based on the original one.
+> 
+> tl;dr: Pick whichever works for you - Open Source rocks :)
+
+`caddy-nats-bridge` is a caddy module that allows the caddy server to interact with a
 [NATS](https://nats.io/) server. This extension supports multiple patterns:
 publish/subscribe, fan in/out, and request reply.
 
@@ -9,17 +16,64 @@ in a pragmatic and straightforward way. If you've been wanting to use NATS, but
 have some use cases that still need to use HTTP, this may be a really good
 option for you.
 
+<!-- TOC -->
+* [Caddy-NATS-Bridge](#caddy-nats-bridge)
+  * [Installation](#installation)
+  * [Getting Started](#getting-started)
+  * [Connecting to NATS](#connecting-to-nats)
+  * [Connectivity Modes](#connectivity-modes)
+  * [Subscribing to a NATS subject](#subscribing-to-a-nats-subject)
+    * [Subscribe Placeholders](#subscribe-placeholders)
+    * [subscribe](#subscribe)
+      * [Syntax](#syntax)
+      * [Example](#example)
+    * [reply](#reply)
+      * [Syntax](#syntax-1)
+      * [Example](#example-1)
+    * [queue_subscribe](#queuesubscribe)
+      * [Syntax](#syntax-2)
+      * [Example](#example-2)
+    * [queue_reply](#queuereply)
+      * [Syntax](#syntax-3)
+      * [Example](#example-3)
+  * [Publishing to a NATS subject](#publishing-to-a-nats-subject)
+    * [Publish Placeholders](#publish-placeholders)
+    * [nats_publish](#natspublish)
+      * [Syntax](#syntax-4)
+      * [Example](#example-4)
+      * [large HTTP payloads with store_body_to_jetstream](#large-http-payloads-with-storebodytojetstream)
+    * [nats_request](#natsrequest)
+      * [Syntax](#syntax-5)
+      * [Example](#example-5)
+      * [Format of the NATS message](#format-of-the-nats-message)
+  * [Concept](#concept)
+  * [What's Next?](#whats-next)
+<!-- TOC -->
+
+## Concept Overview
+
+![](./connectivity-modes.drawio.png)
+
+The module works if you want to bridge *HTTP -> NATS*, and also *NATS -> HTTP* - both in unidirectional, and in
+bidirectional mode. 
+
 ## Installation
 
-To use `caddy-nats`, simply run the [xcaddy](https://github.com/caddyserver/xcaddy) build tool to create a `caddy-nats` compatible caddy server.
+To use `caddy-nats-bridge`, simply run the [xcaddy](https://github.com/caddyserver/xcaddy) build tool to create a
+`caddy-nats-bridge` compatible caddy server.
 
 ```sh
-xcaddy build --with github.com/codegangsta/caddy-nats
+# Prerequisites - install go and xcaddy
+brew install go
+go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+
+# now, build your custom Caddy server (NOTE: path to xcaddy might differ on your system).
+~/go/bin/xcaddy build --with github.com/sandstorm/caddy-nats-bridge
 ```
 
 ## Getting Started
 
-Getting up and running with `caddy-nats` is pretty simple:
+Getting up and running with `caddy-nats-bridge` is pretty simple:
 
 First [install NATS](https://docs.nats.io/running-a-nats-service/introduction/installation) and make sure the NATS server is running:
 
@@ -28,17 +82,24 @@ nats-server
 ```
 
 
+> :bulb: To try this example, `cd examples/nats-to-http-request; ./build-run.sh` 
+
 Then create your Caddyfile:
 
 ```nginx
 {
   nats {
-    reply hello GET https://localhost/hello
+    url 127.0.0.1:4222
+    clientName "My Caddy Server"
+    
+    # if something is received on 
+    subscribe hello GET https://localhost/datausa
   }
 }
 
 localhost {
-  route /hello {
+  route /datausa {
+    https://datausa.io/api/data?drilldowns=Nation&measures=Population
     respond "Hello, world"
   }
 }
@@ -82,10 +143,6 @@ On top, the following options are supported:
   }
 }
 ```
-
-## Connectivity Modes
-
-![](./connectivity-modes.drawio.png)
 
 TODO EXPLAIN
 

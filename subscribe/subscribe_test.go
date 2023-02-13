@@ -75,6 +75,43 @@ func TestSubscribeRequestToNats(t *testing.T) {
 			},
 		},
 		{
+			description: "publish with payload, without headers",
+			sendNatsRequest: func(nc *nats.Conn) error {
+				// 1) send initial NATS request (will be validated on the HTTP handler side)
+				msg := &nats.Msg{
+					Subject: "foo",
+					Data:    []byte("paylod"),
+				}
+				return nc.PublishMsg(msg)
+			},
+			GlobalNatsCaddyfileSnippet: `
+				subscribe foo POST http://localhost:8889/test/something
+			`,
+			CaddyfileSnippet: func(svr *httptest.Server) string {
+				return fmt.Sprintf(`
+					route /test/* {
+						reverse_proxy %s
+					}
+				`, svr.URL)
+			},
+			handleHttp: func(w http.ResponseWriter, r *http.Request) error {
+				// 2) validate incoming HTTP request (converted from NATS)
+				if r.URL.Path != "/test/something" {
+					return fmt.Errorf("URL Path does not match. Expected: /test/something. Actual: %s", r.URL.Path)
+				}
+				b, err := io.ReadAll(r.Body)
+				if err != nil {
+					return err
+				}
+				if string(b) != "paylod" {
+					return fmt.Errorf("body payload does not match. Expected: paylod. Actual: %s", string(b))
+				}
+
+				_, _ = w.Write([]byte(""))
+				return nil
+			},
+		},
+		{
 			description: "request with payload, interested in response",
 			sendNatsRequest: func(nc *nats.Conn) error {
 				// 1) send initial NATS request (will be validated on the HTTP handler side)

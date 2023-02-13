@@ -1,0 +1,5 @@
+[*.txt]
+indent_style = tab
+
+[Caddyfile]
+indent_style = tab

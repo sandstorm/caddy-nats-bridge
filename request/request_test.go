@@ -87,6 +87,42 @@ func TestRequestToNats(t *testing.T) {
 				return msg.RespondMsg(resp)
 			},
 		},
+
+		{
+			description: "Responses without headers should not crash",
+			sendHttpRequestAndAssertResponse: func() error {
+				// 1) send initial HTTP request (will be validated on the NATS handler side)
+				req, err := http.NewRequest("GET", "http://localhost:8889/test/hi", nil)
+				if err != nil {
+					return err
+				}
+				res, err := http.DefaultClient.Do(req)
+				if err != nil {
+					return fmt.Errorf("HTTP request failed: %w", err)
+				}
+
+				// 3) validate HTTP response
+				b, err := io.ReadAll(res.Body)
+				if err != nil {
+					return fmt.Errorf("could not read response body: %w", err)
+				}
+				if string(b) != "respData" {
+					return fmt.Errorf("wrong response body. Expected: respData. Actual: %s", string(b))
+				}
+
+				return nil
+			},
+			CaddyfileSnippet: `
+				route /test/* {
+					nats_request greet.hello
+				}
+			`,
+			handleNatsMessage: func(msg *nats.Msg, nc *nats.Conn) error {
+
+				// 2) send NATS response (will be validated on the HTTP response side)
+				return msg.Respond([]byte("respData"))
+			},
+		},
 		// WILDCARDS!!
 	}
 

@@ -77,6 +77,7 @@ func TestAddNatsSubscribeVarsToReplacer(t *testing.T) {
 		// // Segment placeholders
 		{msg: nats.NewMsg("foo.bar"), input: "{nats.subject.asUriPath.0}", want: "foo"},
 		{msg: nats.NewMsg("foo.bar"), input: "{nats.subject.asUriPath.1}", want: "bar"},
+		// TODO: nats.subject.0 etc -> also allow this.
 
 		// // Segment Ranges
 		{msg: nats.NewMsg("foo.bar.bat.baz"), input: "{nats.subject.asUriPath.0:}", want: "foo/bar/bat/baz"},
