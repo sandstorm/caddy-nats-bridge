@@ -6,11 +6,11 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/nats-io/nats.go"
+	"github.com/sandstorm/caddy-nats-bridge/common"
+	"github.com/sandstorm/caddy-nats-bridge/natsbridge"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
-	"sandstorm.de/custom-caddy/nats-bridge/common"
-	"sandstorm.de/custom-caddy/nats-bridge/global"
 )
 
 type Publish struct {
@@ -18,7 +18,7 @@ type Publish struct {
 	ServerAlias string `json:"serverAlias,omitempty"`
 
 	logger *zap.Logger
-	app    *global.NatsBridgeApp
+	app    *natsbridge.NatsBridgeApp
 }
 
 func (Publish) CaddyModule() caddy.ModuleInfo {
@@ -33,10 +33,10 @@ func (p *Publish) Provision(ctx caddy.Context) error {
 
 	natsAppIface, err := ctx.App("nats")
 	if err != nil {
-		return fmt.Errorf("getting NATS app: %v. Make sure NATS is configured in global options", err)
+		return fmt.Errorf("getting NATS app: %v. Make sure NATS is configured in nats options", err)
 	}
 
-	p.app = natsAppIface.(*global.NatsBridgeApp)
+	p.app = natsAppIface.(*natsbridge.NatsBridgeApp)
 
 	return nil
 }
@@ -67,7 +67,7 @@ func (p Publish) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 	return next.ServeHTTP(w, r)
 }
 
-func (p *Publish) natsMsgForHttpRequest(r *http.Request, subject string, server *global.NatsServer) (*nats.Msg, error) {
+func (p *Publish) natsMsgForHttpRequest(r *http.Request, subject string, server *natsbridge.NatsServer) (*nats.Msg, error) {
 	var msg *nats.Msg
 
 	b, _ := io.ReadAll(r.Body)

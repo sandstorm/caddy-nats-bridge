@@ -6,11 +6,11 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/nats-io/nats.go"
+	"github.com/sandstorm/caddy-nats-bridge/common"
+	"github.com/sandstorm/caddy-nats-bridge/natsbridge"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
-	"sandstorm.de/custom-caddy/nats-bridge/common"
-	"sandstorm.de/custom-caddy/nats-bridge/global"
 	"time"
 )
 
@@ -26,7 +26,7 @@ type Request struct {
 	ServerAlias string        `json:"serverAlias,omitempty"`
 
 	logger *zap.Logger
-	app    *global.NatsBridgeApp
+	app    *natsbridge.NatsBridgeApp
 }
 
 func (Request) CaddyModule() caddy.ModuleInfo {
@@ -41,10 +41,10 @@ func (p *Request) Provision(ctx caddy.Context) error {
 
 	natsAppIface, err := ctx.App("nats")
 	if err != nil {
-		return fmt.Errorf("getting NATS app: %v. Make sure NATS is configured in global options", err)
+		return fmt.Errorf("getting NATS app: %v. Make sure NATS is configured in nats options", err)
 	}
 
-	p.app = natsAppIface.(*global.NatsBridgeApp)
+	p.app = natsAppIface.(*natsbridge.NatsBridgeApp)
 
 	return nil
 }
@@ -75,25 +75,18 @@ func (p Request) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		return err
 	}
 
-	resp, err = server.Conn.RequestMsg(msg, publishDefaultTimeout)
+	_, err = server.Conn.RequestMsg(msg, publishDefaultTimeout)
+	// TODO: handle response
 	if err != nil {
 		return fmt.Errorf("could not publish NATS message: %w", err)
 	}
 	return next.ServeHTTP(w, r)
 }
 
-func (p *Request) natsMsgForHttpRequest(r *http.Request, subject string, server *global.NatsServer) (*nats.Msg, error) {
+func (p *Request) natsMsgForHttpRequest(r *http.Request, subject string, server *natsbridge.NatsServer) (*nats.Msg, error) {
 	var msg *nats.Msg
 	// TODO: real message size limit of NATS here
 
-	// NOTE: we could implement this in a streaming fashion to JetStream via
-	// _, err = os.Put(&nats.ObjectMeta{
-	//			Name: fileStreamId,
-	//		}, r.Body)
-	// but we could not make this work.
-	// So that's why we can easily read the full body here anyways to simplify code paths; and then we can
-	// decide based on the actual length; and not based of the ContentLength Header.
-	// In case we want to change it somewhen, we need to take care of Chunked Uploads via r.ContentLength == -1 || r.ContentLength > 950_000_000
 	b, _ := io.ReadAll(r.Body)
 
 	headers := nats.Header(r.Header)

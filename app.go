@@ -1,18 +1,18 @@
-package caddynats
+package caddy_nats_bridge
 
 import (
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
-	"sandstorm.de/custom-caddy/nats-bridge/body_jetstream"
-	"sandstorm.de/custom-caddy/nats-bridge/global"
-	"sandstorm.de/custom-caddy/nats-bridge/publish"
-	"sandstorm.de/custom-caddy/nats-bridge/request"
-	"sandstorm.de/custom-caddy/nats-bridge/subscribe"
+	"github.com/sandstorm/caddy-nats-bridge/body_jetstream"
+	"github.com/sandstorm/caddy-nats-bridge/natsbridge"
+	"github.com/sandstorm/caddy-nats-bridge/publish"
+	"github.com/sandstorm/caddy-nats-bridge/request"
+	"github.com/sandstorm/caddy-nats-bridge/subscribe"
 )
 
 func init() {
-	caddy.RegisterModule(global.NatsBridgeApp{})
-	httpcaddyfile.RegisterGlobalOption("nats", global.ParseGobalNatsOption)
+	caddy.RegisterModule(natsbridge.NatsBridgeApp{})
+	httpcaddyfile.RegisterGlobalOption("nats", natsbridge.ParseGobalNatsOption)
 	caddy.RegisterModule(subscribe.Subscribe{})
 
 	caddy.RegisterModule(publish.Publish{})

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/caddyserver/caddy/v2/caddytest"
 	"github.com/nats-io/nats.go"
+	_ "github.com/sandstorm/caddy-nats-bridge"
 	"io"
 	"net/http"
-	_ "sandstorm.de/custom-caddy/nats-bridge"
 	"testing"
 	"time"
 )

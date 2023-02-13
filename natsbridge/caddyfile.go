@@ -1,11 +1,11 @@
-package global
+package natsbridge
 
 import (
 	"encoding/json"
 	"github.com/caddyserver/caddy/v2/caddyconfig"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
-	"sandstorm.de/custom-caddy/nats-bridge/subscribe"
+	"github.com/sandstorm/caddy-nats-bridge/subscribe"
 )
 
 func ParseGobalNatsOption(d *caddyfile.Dispenser, existingVal interface{}) (interface{}, error) {

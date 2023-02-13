@@ -1,4 +1,4 @@
-package caddynats
+package common
 
 import (
 	"math"

@@ -1,4 +1,4 @@
-package global
+package natsbridge
 
 import (
 	"encoding/json"
@@ -6,11 +6,11 @@ import (
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/nats-io/nats.go"
+	"github.com/sandstorm/caddy-nats-bridge/common"
 	"go.uber.org/zap"
-	"sandstorm.de/custom-caddy/nats-bridge/common"
 )
 
-// NatsBridgeApp is the global nats bridge for Caddy.
+// NatsBridgeApp is the natsbridge nats bridge for Caddy.
 //
 // NATS is a simple, secure and performant communications system for digital
 // systems, services and devices.
@@ -41,7 +41,7 @@ type NatsServer struct {
 // CaddyModule returns the Caddy module information.
 func (app NatsBridgeApp) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID: "natsbridge",
+		ID: "nats",
 		New: func() caddy.Module {
 			app := new(NatsBridgeApp)
 			app.Servers = make(map[string]*NatsServer)

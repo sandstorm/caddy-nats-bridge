@@ -7,11 +7,11 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nuid"
+	"github.com/sandstorm/caddy-nats-bridge/common"
+	"github.com/sandstorm/caddy-nats-bridge/natsbridge"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
-	"sandstorm.de/custom-caddy/nats-bridge/common"
-	"sandstorm.de/custom-caddy/nats-bridge/global"
 	"sync/atomic"
 	"time"
 )
@@ -22,7 +22,7 @@ type StoreBodyToJetStream struct {
 	// in which NATS server should the request body be stored?
 	ServerAlias string `json:"serverAlias,omitempty"`
 
-	app    *global.NatsBridgeApp
+	app    *natsbridge.NatsBridgeApp
 	logger *zap.Logger
 	// do not use directly, but always use objectStore() to access, to ensure it is initialized.
 	os atomic.Pointer[nats.ObjectStore]
@@ -40,10 +40,10 @@ func (sb *StoreBodyToJetStream) Provision(ctx caddy.Context) error {
 
 	natsAppIface, err := ctx.App("nats")
 	if err != nil {
-		return fmt.Errorf("getting NATS app: %w. Make sure NATS is configured in global options", err)
+		return fmt.Errorf("getting NATS app: %w. Make sure NATS is configured in natsbridge options", err)
 	}
 
-	sb.app = natsAppIface.(*global.NatsBridgeApp)
+	sb.app = natsAppIface.(*natsbridge.NatsBridgeApp)
 
 	return nil
 }
@@ -69,6 +69,14 @@ func (sb *StoreBodyToJetStream) ServeHTTP(writer http.ResponseWriter, request *h
 			return fmt.Errorf("cannot retrieve object store: %w", err)
 		}
 
+		// NOTE: we could implement this in a streaming fashion to JetStream via
+		// _, err = os.Put(&nats.ObjectMeta{
+		//			Name: fileStreamId,
+		//		}, r.Body)
+		// but we could not make this work.
+		// So that's why we can easily read the full body here anyways to simplify code paths; and then we can
+		// decide based on the actual length; and not based of the ContentLength Header.
+		// In case we want to change it somewhen, we need to take care of Chunked Uploads via r.ContentLength == -1 || r.ContentLength > 950_000_000
 		_, err = os.Put(&nats.ObjectMeta{
 			Name: id,
 		}, bytes.NewReader(b)) // TODO: we cannot directly stream request.Body to os.Put, although it should work type-wise - so we read the full resp into bytes
@@ -84,7 +92,7 @@ func (sb *StoreBodyToJetStream) ServeHTTP(writer http.ResponseWriter, request *h
 }
 
 // objectStore is lazily initializing the NATS JetStream object store on first access.
-// This is not possible inside Provision(), because we do not know whether the global.NatsBridgeApp
+// This is not possible inside Provision(), because we do not know whether the natsbridge.NatsBridgeApp
 // is already set up or not (because provisioning order is not deterministic).
 func (sb *StoreBodyToJetStream) objectStore() (nats.ObjectStore, error) {
 	tmp := sb.os.Load()

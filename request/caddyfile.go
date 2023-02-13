@@ -8,7 +8,6 @@ import (
 
 func ParseRequestHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
 	var p = Request{
-		//WithReply: false,
 		//Timeout:     publishDefaultTimeout,
 		ServerAlias: "default",
 	}
