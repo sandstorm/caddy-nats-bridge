@@ -27,11 +27,10 @@ func (Request) CaddyModule() caddy.ModuleInfo {
 		ID: "http.handlers.nats_request",
 		New: func() caddy.Module {
 			// Default values
-			m := &Request{
+			return &Request{
 				Timeout:     1 * time.Second,
 				ServerAlias: "default",
 			}
-			return m
 		},
 	}
 }

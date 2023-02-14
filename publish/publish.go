@@ -21,8 +21,13 @@ type Publish struct {
 
 func (Publish) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID:  "http.handlers.nats_publish",
-		New: func() caddy.Module { return new(Publish) },
+		ID: "http.handlers.nats_publish",
+		New: func() caddy.Module {
+			// Default values
+			return &Publish{
+				ServerAlias: "default",
+			}
+		},
 	}
 }
 

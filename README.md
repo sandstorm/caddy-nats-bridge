@@ -23,21 +23,16 @@ option for you.
   * [Getting Started](#getting-started)
   * [Connecting to NATS](#connecting-to-nats)
   * [NATS -> HTTP via `subscribe`](#nats----http-via-subscribe)
-    * [Subscribe Placeholders](#subscribe-placeholders)
+    * [Placeholders for `subscribe`](#placeholders-for-subscribe)
     * [Queue Groups](#queue-groups)
-  * [------------------------](#------------------------)
-  * [Publishing to a NATS subject](#publishing-to-a-nats-subject)
-    * [Publish Placeholders](#publish-placeholders)
-    * [nats_publish](#natspublish)
-      * [Syntax](#syntax)
-      * [Example](#example)
-      * [large HTTP payloads with store_body_to_jetstream](#large-http-payloads-with-storebodytojetstream)
-    * [nats_request](#natsrequest)
-      * [Syntax](#syntax-1)
-      * [Example](#example-1)
-      * [Format of the NATS message](#format-of-the-nats-message)
-  * [Concept](#concept)
-  * [What's Next?](#whats-next)
+  * [HTTP -> NATS via `nats_request` (interested about response)](#http----nats-via-natsrequest--interested-about-response-)
+    * [Placeholders for `nats_request`](#placeholders-for-natsrequest)
+    * [Extra headers for `nats_request`](#extra-headers-for-natsrequest)
+  * [HTTP -> NATS via `nats_publish` (fire-and-forget)](#http----nats-via-natspublish--fire-and-forget-)
+    * [Placeholders for `nats_publish`](#placeholders-for-natspublish)
+    * [Extra headers for `nats_publish`](#extra-headers-for-natspublish)
+  * [large HTTP payloads with store_body_to_jetstream](#large-http-payloads-with-storebodytojetstream)
+  * [Development](#development)
 <!-- TOC -->
 
 ## Concept Overview
@@ -204,6 +199,9 @@ we forward the HTTP response back to the original sender. If not, we discard the
 We route the message inside Caddy to the matching `server` block (depending on the hostname). Then you can use
 further Caddy directives for processing the message.
 
+NATS headers get converted to HTTP request headers. HTTP response headers are converted to NATS headers on
+the reply message (if applicable).
+
 ```nginx
 {
   nats [alias] {
@@ -223,9 +221,10 @@ http://127.0.0.1:8081 {
 }
 ```
 
-### Subscribe Placeholders
+### Placeholders for `subscribe`
 
-The `subscribe` directive supports the following `caddy` placeholders in the `http_method` and `http_url` arguments:
+The `subscribe` directive supports the [global placeholders of Caddy](https://caddyserver.com/docs/conventions#placeholders)
+inside the `http_method` and `http_url` parameters. Additional, the following (NATS specific) placeholders can be used:
 
 - `{nats.request.subject}`: The subject of this message. 
   Example: `datausa.Nation.Population`
@@ -255,42 +254,102 @@ The `subscribe` directive supports the following `caddy` placeholders in the `ht
 If you want to take part in Load Balancing via [NATS Queue Groups](https://docs.nats.io/nats-concepts/core-nats/queue),
 you can specify the queue group to subscribe to via the nested `queue` directive inside the `subscribe` block.
 
-------------------------
-------------------------
-------------------------
-
-## Publishing to a NATS subject
-
-`caddy-nats` also supports publishing to NATS subjects when an HTTP call is
-matched within `caddy`, this makes for some very powerful bidirectional
-patterns.
-
-### Publish Placeholders
-
-All `publish` based directives (`nats_publish`, `nats_request`) support the following `caddy` placeholders in the `subject` argument:
-
-- `{nats.subject}`: The path of the http request, with slashes "/" replaced with dots "." to make it easy to map to a NATS subject.
-- `{nats.subject.*}`: You can also select a segment of a subject ex: `{nats.subject.0}` or a subslice of the subject: `{nats.subject.2:}` or `{nats.subject.2:7}` to have ultimate flexibility in what to forward onto the URL path.
-
-Additionally, since `publish` based directives are caddy http handlers, you also get access to all [caddy http placeholders](https://caddyserver.com/docs/modules/http#docs).
-
 ---
+## HTTP -> NATS via `nats_request` (interested about response)
 
-### nats_publish
-
-#### Syntax
 ```nginx
-nats_publish [<matcher>] <subject> {
-  timeout <timeout-ms>
+nats_request [matcher] [serverAlias] subject {
+  [timeout 42ms]
 }
 ```
-`nats_publish` publishes the request body to the specified NATS subject. This
+
+`nats_request` publishes the HTTP request to the specified NATS subject, and
+sends the NATS reply back as HTTP response. It is a terminal handler,
+meaning it does not make sense to place Caddy handlers after this one because
+they will never be called.
+
+HTTP request headers are converted to NATS headers. NATS reply headers are converted
+to HTTP response headers.
+
+For `matcher`, all registered [Caddy request matchers](https://caddyserver.com/docs/json/apps/http/servers/routes/match/)
+can be used - and the `nats_request` handler is only triggered if the request matches the matcher. 
+
+If `serverAlias` is not given, `default` is used.
+
+**Example usage:**
+
+```nginx
+localhost {
+  route /hello {
+    nats_request events.hello
+  }
+}
+```
+
+### Placeholders for `nats_request`
+
+(same as for `nats_publish`)
+
+You can use the [http placeholders of Caddy](https://caddyserver.com/docs/json/apps/http/#docs) and
+the [global placeholders of Caddy](https://caddyserver.com/docs/conventions#placeholders) inside the
+`subject` string. The most useful ones are usually:
+
+```
+{http.request.uri.path} 	The path component of the request URI
+{http.request.uri.path.*} 	Parts of the path, split by / (0-based from left)
+{http.request.header.*}     Specific request header field
+```
+
+Additionally, the following placeholders are available:
+
+- `http.request.uri.path.asNatsSubject`: The URI path, with slashes `/` replaced with a dot `.` to make it easy to
+  map it to a NATS subject.
+- `{http.request.uri.path.asNatsSubject.*}`: You can also select a segment of a path by index (0-based):
+  `{http.request.uri.path.asNatsSubject.0}`  or a subslice of a path: `{http.request.uri.path.asNatsSubject.2:}`
+  or `{http.request.uri.path.asNatsSubject.2:7}` to have ultimate flexibility how to build the NATS subject.
+
+  Examples:
+  ```
+  # incoming URL path: /project/sandstorm/events
+  
+  {http.request.uri.path.asNatsSubject.0} => project
+  {http.request.uri.path.asNatsSubject.1} => sandstorm
+  {http.request.uri.path.asNatsSubject.1:} => sandstorm.events
+  {http.request.uri.path.asNatsSubject.0:1} => project.sandstorm
+  ```
+
+### Extra headers for `nats_request`
+
+(same as for `nats_publish`)
+
+All HTTP headers will become NATS Message headers. On top if this, the following headers are automatically set:
+
+- `X-NatsBridge-Method` header: contains the HTTP header `GET,POST,HEAD,...`
+- `X-NatsBridge-UrlPath` header: URI path without query string
+- `X-NatsBridge-UrlQuery` header: encoded query values, without `?`
+
+> We might want to support setting arbitrary headers later :) (from Caddy expressions). Create an issue if you need this :) 
+
+
+---
+## HTTP -> NATS via `nats_publish` (fire-and-forget)
+
+```nginx
+nats_publish [matcher] [serverAlias] subject
+```
+
+`nats_publish` publishes the HTTP request to the specified NATS subject. This
 http handler is not a terminal handler, which means it can be used as
 middleware (Think logging and events for specific http requests).
 
-#### Example
+HTTP request headers are converted to NATS headers.
 
-Publish an event before responding to the http request:
+For `matcher`, all registered [Caddy request matchers](https://caddyserver.com/docs/json/apps/http/servers/routes/match/)
+can be used - and the `nats_request` handler is only triggered if the request matches the matcher.
+
+If `serverAlias` is not given, `default` is used.
+
+**Example usage:**
 
 ```nginx
 localhost {
@@ -301,9 +360,81 @@ localhost {
 }
 ```
 
-#### large HTTP payloads with store_body_to_jetstream
+### Placeholders for `nats_publish`
 
-(TODO describe here)
+(same as for `nats_request`)
+
+You can use the [http placeholders of Caddy](https://caddyserver.com/docs/json/apps/http/#docs) and
+the [global placeholders of Caddy](https://caddyserver.com/docs/conventions#placeholders) inside the
+`subject` string. The most useful ones are usually:
+
+```
+{http.request.uri.path} 	The path component of the request URI
+{http.request.uri.path.*} 	Parts of the path, split by / (0-based from left)
+{http.request.header.*}     Specific request header field
+```
+
+Additionally, the following placeholders are available:
+
+- `http.request.uri.path.asNatsSubject`: The URI path, with slashes `/` replaced with a dot `.` to make it easy to
+  map it to a NATS subject.
+- `{http.request.uri.path.asNatsSubject.*}`: You can also select a segment of a path by index (0-based):
+  `{http.request.uri.path.asNatsSubject.0}`  or a subslice of a path: `{http.request.uri.path.asNatsSubject.2:}`
+  or `{http.request.uri.path.asNatsSubject.2:7}` to have ultimate flexibility how to build the NATS subject.
+
+  Examples:
+  ```
+  # incoming URL path: /project/sandstorm/events
+  
+  {http.request.uri.path.asNatsSubject.0} => project
+  {http.request.uri.path.asNatsSubject.1} => sandstorm
+  {http.request.uri.path.asNatsSubject.1:} => sandstorm.events
+  {http.request.uri.path.asNatsSubject.0:1} => project.sandstorm
+  ```
+
+### Extra headers for `nats_publish`
+
+(same as for `nats_request`)
+
+All HTTP headers will become NATS Message headers. On top if this, the following headers are automatically set:
+
+- `X-NatsBridge-Method` header: contains the HTTP header `GET,POST,HEAD,...`
+- `X-NatsBridge-UrlPath` header: URI path without query string
+- `X-NatsBridge-UrlQuery` header: encoded query values, without `?`
+
+> We might want to support setting arbitrary headers later :) (from Caddy expressions). Create an issue if you need this :)
+
+
+---
+## large HTTP payloads with store_body_to_jetstream
+
+`store_body_to_jetstream` is experimental and might change without further notice as this feature is developed further.
+
+NATS messages have a size limit of usually 1 MB (and 8 MB as hardcoded limit). Sometimes, HTTP requests or responses
+contain bigger payloads than this.
+
+`store_body_to_jetstream` takes a HTTP request's body and stores it to a temporary [JetStream Object Storage (EXPERIMENTAL)](https://docs.nats.io/using-nats/developer/develop_jetstream/object).
+It then adds the NATS message headers `X-NatsBridge-Body-Bucket` pointing to the JetStream Object Store bucket,
+and `X-NatsBridge-Body-Id` pointing to the object ID.
+It then empties the body of the HTTP message before it is processed further.
+
+```nginx
+store_body_to_jetstream [<matcher>] [[serverAlias] bucketName] {
+   [ttl 5m]
+}
+```
+
+For `matcher`, all registered [Caddy request matchers](https://caddyserver.com/docs/json/apps/http/servers/routes/match/)
+can be used - and the `nats_request` handler is only triggered if the request matches the matcher.
+
+If `serverAlias` is not given, `default` is used.
+
+If `bucketName` is not given, `LargeHttpRequestBodies` is used. The bucket is auto-created using the specified `ttl`
+if it does not exist.
+
+`store_body_to_jetstream` must be placed *before* `nats_publish` or `nats_request` in order to do its work.
+
+**Example usage:**
 
 ```nginx
 localhost {
@@ -315,73 +446,54 @@ localhost {
 }
 ```
 
----
+When sending a NATS message after store_body_to_jetstream, the following headers are set:
 
-### nats_request
+- `X-NatsBridge-Body-Bucket` header: pointing to the JetStream Object Store bucket
+- `X-NatsBridge-Body-Id` header: pointing to the object ID
 
-#### Syntax
-```nginx
-nats_request [<matcher>] <subject> {
-  timeout <timeout-ms>
-}
-```
-`nats_request` publishes the request body to the specified NATS subject, and
-writes the response of the NATS reply to the http response body.
+> This feature is, as already stated, **considered experimental**.
+>
+> We have the following development ideas around this:
+> - We do not want to store all request bodies; but ideally only those only bigger than a size limit.
+> - Additionally, we need to decide what to do with requests without a `Content-Length` - when using
+>   `Transfer-Encoding: chunked`. Either we buffer these fully into memory (so that we know its size),
+>   or we stream them directly to JetStream as they come in.
+> - We need to create the "reverse" operation as well: take a HTTP response with the `X-NatsBridge-Body-Bucket`
+>   and `X-NatsBridge-Body-Id` headers, and fetch the body from JetStream.
+> - We need the same pair of operations for *upstream* HTTP responses.
+>   - Maybe we should support re-using a response body based on cache etags?
 
-#### Example
 
-Publish an event before responding to the http request:
+## Development
 
-```nginx
-localhost {
-  route /hello/* {
-    nats_request hello_service.{nats.subject.1}
-  }
-}
-```
+All features have tests written. To run them, use `./dev.sh run-tests` - or use https://github.com/sandstorm/dev-script-runner
+to run them.
 
-#### Format of the NATS message
+**Long-Term Vision / Feature Ideas**
 
-- HTTP Body = NATS Message Data
-- HTTP Headers = NATS Message Headers
-  - `X-NatsBridge-Method` header: contains the HTTP header `GET,POST,HEAD,...`
-  - `X-NatsBridge-UrlPath` header: URI path without query string
-  - `X-NatsBridge-UrlQuery` header: query string
-  - `X-NatsBridge-LargeBody-Bucket` header
-  - `X-NatsBridge-LargeBody-Id` header
-- NATS messages have a size limit of usually 1 MB (and 8 MB as hardcoded limit).
-  In case the HTTP body is bigger, or alternatively, is submitted with `Transfer-Encoding: chunked` (so we do not know the size upfront);
-  we do the following:
-  - We store the HTTP body in the [JetStream Object Storage (EXPERIMENTAL)](https://docs.nats.io/using-nats/developer/develop_jetstream/object)
-    for a few minutes; in a random key.
-  - The name of this KV Storage key is stored in the `X-NatsBridge-LargeBody-Id`.
-    - TODO: support for response body re-use based on cache etags?
+This tooling might be very useful for exposing HTTP based services in NATS.
 
-## Large Body stuff
+Especially combined with other NATS features such as authorization, an implementer
+could assume that NATS requests *are* already authenticated; and automatically
+add outgoing API keys (when talking to public APIs). This should greatly simplify
+API key management.
 
-## Concept
+In the long run, we might be able to replace things like a Kubernetes Ingress completely,
+and use caddy-nats-bridge in place of the Ingress - and then do the routing based on NATS
+subjects. This might also greatly simplify quite some features like scale-to-zero deployments.
 
-- HTTP => NATS => HTTP should functionally emit the same requests (and responses)
-- Big Request bodies should be stored to JetStream
-  - for transfer encoding chunked
-- (NATS -> HTTP) Big response bodies should be stored to JetStream
-  - for transfer encoding chunked
-  - for unknown response sizes
-  - TODO: Re-use same cache entries if etags match?
-- TODO: is request / response streaming necessary???
-- All HTTP headers are passed through to NATS without modification
-- All Nats headers except "X-NatsBridge-...." are passed to HTTP without modification
-  - X-NatsBridge-Method
-  - X-NatsBridge-JSBodyId
-- allow multiple NATS servers
+This might especially make sense together with Caddy extensions like [FrankenPHP](https://github.com/dunglas/frankenphp),
+so we could generate replies without even needing to send out a HTTP message again.
 
-## What's Next?
-While this is currently functional and useful as is, here are the things I'd like to add next:
+**Thanks**
 
-- [ ] Add more examples in the /examples directory
-- [ ] Add Validation for all caddy modules in this package
-- [ ] Add godoc comments
-- [ ] Support mapping nats headers and http headers for upstream and downstream
-- [ ] Customizable error handling
-- [ ] Jetstream support (for all that persistence babyyyy)
-- [ ] nats KV for storage
+Thanks to Derek Collison and the NATS team for building such a great project, and same to
+Matt Holt and the Caddy team. A special thanks to the .tech podcast team, because through
+[this podcast](https://techpodcast.form3.tech/episodes/ep-5-tech-nats-with-founder-derek-collison)
+I re-discovered NATS and I started to grasp what we could use it for.
+
+A huge thanks to https://github.com/codegangsta/caddy-nats, from whose code-base I started, as I would
+not have been able to build all this from scratch without a working implementation already.
+
+And finally a big Thank You also to my team at https://sandstorm.de/, who are always encouraging
+and receptive all the time I come along with a crazy idea.

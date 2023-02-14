@@ -6,10 +6,13 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
 
+// ParsePublishHandler parses the nats_publish directive. Syntax:
+//
+//	nats_publish [serverAlias] subject {
+//	    [timeout 42ms]
+//	}
 func ParsePublishHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
-	var p = Publish{
-		ServerAlias: "default",
-	}
+	var p = Publish{}
 	err := p.UnmarshalCaddyfile(h.Dispenser)
 	return p, err
 }

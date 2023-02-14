@@ -1,6 +1,8 @@
 localhost {
 	route /test/* {
-		nats_publish hello_service.{nats.subject.1}
+		nats_request foo hello_service.{nats.subject.1} {
+			timeout 52ms
+		}
 	}
 }
 ----------
@@ -33,8 +35,10 @@ localhost {
 														{
 															"handle": [
 																{
-																	"handler": "nats_publish",
-																	"subject": "hello_service.{nats.subject.1}"
+																	"handler": "nats_request",
+																	"serverAlias": "foo",
+																	"subject": "hello_service.{nats.subject.1}",
+																	"timeout": 52000000
 																}
 															]
 														}

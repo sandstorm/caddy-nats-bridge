@@ -21,8 +21,8 @@ func AddNATSPublishVarsToReplacer(repl *caddy.Replacer, req *http.Request) {
 			}
 
 			// subject parts
-			if strings.HasPrefix(key, natsSubjectReplPrefix) {
-				idxStr := key[len(natsSubjectReplPrefix):]
+			if prefix := "http.request.uri.path.asNatsSubject."; strings.HasPrefix(key, prefix) {
+				idxStr := key[len(prefix):]
 				p := strings.Trim(req.URL.Path, "/")
 				parts := strings.Split(p, "/")
 				s, ok := subSlice(parts, idxStr)
@@ -126,5 +126,3 @@ func subSlice(s []string, exp string) ([]string, bool) {
 func minMax(i int, min int, max int) int {
 	return int(math.Min(float64(max), math.Max(float64(min), float64(i))))
 }
-
-var natsSubjectReplPrefix = "http.request.uri.path.asNatsSubject."
