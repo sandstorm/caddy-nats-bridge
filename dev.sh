@@ -14,7 +14,8 @@ set -e
 
 function run-tests() {
   go mod tidy
-  go test -v github.com/sandstorm/caddy-nats-bridge/...
+  # we cannot run in parallel right now, because the tests all boot up caddy servers and NATS servers on fixed ports.
+  go test -p 1 -v github.com/sandstorm/caddy-nats-bridge/...
 }
 
 
