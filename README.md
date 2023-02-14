@@ -485,6 +485,11 @@ subjects. This might also greatly simplify quite some features like scale-to-zer
 This might especially make sense together with Caddy extensions like [FrankenPHP](https://github.com/dunglas/frankenphp),
 so we could generate replies without even needing to send out a HTTP message again.
 
+Further feature ideas:
+
+- Publish Caddy Request Logs to NATS
+- use NATS KV as storage for Caddy (e.g. for certificates)
+
 **Thanks**
 
 Thanks to Derek Collison and the NATS team for building such a great project, and same to
