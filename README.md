@@ -17,22 +17,22 @@ have some use cases that still need to use HTTP, this may be a really good
 option for you.
 
 <!-- TOC -->
-* [Caddy-NATS-Bridge](#caddy-nats-bridge)
-  * [Concept Overview](#concept-overview)
-  * [Installation](#installation)
-  * [Getting Started](#getting-started)
-  * [Connecting to NATS](#connecting-to-nats)
-  * [NATS -> HTTP via `subscribe`](#nats----http-via-subscribe)
-    * [Placeholders for `subscribe`](#placeholders-for-subscribe)
-    * [Queue Groups](#queue-groups)
-  * [HTTP -> NATS via `nats_request` (interested about response)](#http----nats-via-natsrequest--interested-about-response-)
-    * [Placeholders for `nats_request`](#placeholders-for-natsrequest)
-    * [Extra headers for `nats_request`](#extra-headers-for-natsrequest)
-  * [HTTP -> NATS via `nats_publish` (fire-and-forget)](#http----nats-via-natspublish--fire-and-forget-)
-    * [Placeholders for `nats_publish`](#placeholders-for-natspublish)
-    * [Extra headers for `nats_publish`](#extra-headers-for-natspublish)
-  * [large HTTP payloads with store_body_to_jetstream](#large-http-payloads-with-storebodytojetstream)
-  * [Development](#development)
+- [Caddy-NATS-Bridge](#caddy-nats-bridge)
+  - [Concept Overview](#concept-overview)
+  - [Installation](#installation)
+  - [Getting Started](#getting-started)
+  - [Connecting to NATS](#connecting-to-nats)
+  - [NATS -\> HTTP via `subscribe`](#nats---http-via-subscribe)
+    - [Placeholders for `subscribe`](#placeholders-for-subscribe)
+    - [Queue Groups](#queue-groups)
+  - [HTTP -\> NATS via `nats_request` (interested about response)](#http---nats-via-nats_request-interested-about-response)
+    - [Placeholders for `nats_request`](#placeholders-for-nats_request)
+    - [Extra headers for `nats_request`](#extra-headers-for-nats_request)
+  - [HTTP -\> NATS via `nats_publish` (fire-and-forget)](#http---nats-via-nats_publish-fire-and-forget)
+    - [Placeholders for `nats_publish`](#placeholders-for-nats_publish)
+    - [Extra headers for `nats_publish`](#extra-headers-for-nats_publish)
+  - [large HTTP payloads with store\_body\_to\_jetstream](#large-http-payloads-with-store_body_to_jetstream)
+  - [Development](#development)
 <!-- TOC -->
 
 ## Concept Overview
@@ -83,7 +83,8 @@ Then create and run your Caddyfile:
 		clientName "My Caddy Server"
 
 		# listens to "datausa.[drilldowns].[measures]" -> calls internal URL
-		subscribe datausa.> GET http://127.0.0.1:8888/datausa/{nats.subject.asUriPath.1}/{nats.subject.asUriPath.2}
+		# nats req "datausa.Nation.Population" ""
+		subscribe datausa.> GET http://127.0.0.1:8888/datausa/{nats.request.subject.asUriPath.1}/{nats.request.subject.asUriPath.2}
 	}
 }
 
@@ -103,6 +104,7 @@ http://127.0.0.1:8888 {
 		nats_request cli.weather.{http.request.uri.path.1}
 	}
 }
+
 
 ```
 
@@ -489,6 +491,7 @@ Further feature ideas:
 
 - Publish Caddy Request Logs to NATS
 - use NATS KV as storage for Caddy (e.g. for certificates)
+- register services for endpoints
 
 **Thanks**
 

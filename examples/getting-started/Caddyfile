@@ -4,7 +4,8 @@
 		clientName "My Caddy Server"
 
 		# listens to "datausa.[drilldowns].[measures]" -> calls internal URL
-		subscribe datausa.> GET http://127.0.0.1:8888/datausa/{nats.subject.asUriPath.1}/{nats.subject.asUriPath.2}
+		# nats req "datausa.Nation.Population" ""
+		subscribe datausa.> GET http://127.0.0.1:8888/datausa/{nats.request.subject.asUriPath.1}/{nats.request.subject.asUriPath.2}
 	}
 }
 
