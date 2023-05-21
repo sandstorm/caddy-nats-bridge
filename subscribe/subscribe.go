@@ -111,6 +111,7 @@ func (s *Subscribe) handler(msg *nats.Msg) {
 		// -> so we can send the response back.
 		rec := httptest.NewRecorder()
 		server.ServeHTTP(rec, req)
+		// rec.Code -> TODO: new status code
 		//TODO Handle error
 		msg.RespondMsg(&nats.Msg{
 			Header: nats.Header(rec.Header()),

@@ -256,6 +256,16 @@ inside the `http_method` and `http_url` parameters. Additional, the following (N
 If you want to take part in Load Balancing via [NATS Queue Groups](https://docs.nats.io/nats-concepts/core-nats/queue),
 you can specify the queue group to subscribe to via the nested `queue` directive inside the `subscribe` block.
 
+### FAQ: HTTP URL Parameters
+
+in case you want to use request parameters, I suggest the following way of using `subscribe`:
+
+```
+subscribe datausa.> GET http://127.0.0.1:8081/{nats.subject.asUriPath.1:}?{nats.request.header.X-NatsBridge-UrlQuery}
+```
+
+This way, the NATS request header `X-NatsBridge-UrlQuery` can be used to set URL parameters.
+
 ---
 ## HTTP -> NATS via `nats_request` (interested about response)
 
