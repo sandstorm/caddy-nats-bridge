@@ -127,8 +127,13 @@ func (s *Subscribe) handler(msg *nats.Msg) {
 func (s *Subscribe) matchServer(servers map[string]*caddyhttp.Server, req *http.Request) (*caddyhttp.Server, error) {
 	repl := caddy.NewReplacer()
 	for _, server := range servers {
+		if !hasListenerAddress(server, req.URL) {
+			// listener address (host/port) does not match for server, so we can continue with next server.
+			continue
+		}
 		r := caddyhttp.PrepareRequest(req, repl, nil, server)
 		for _, route := range server.Routes {
+
 			if route.MatcherSets.AnyMatch(r) {
 				return server, nil
 			}
@@ -136,6 +141,33 @@ func (s *Subscribe) matchServer(servers map[string]*caddyhttp.Server, req *http.
 	}
 
 	return nil, fmt.Errorf("no server matched for the current url: %s", req.URL)
+}
+
+// hasListenerAddress is modelled after the same function in caddyhttp/server, but a bit simplified.
+func hasListenerAddress(s *caddyhttp.Server, fullAddr *url.URL) bool {
+	laddrs, err := caddy.ParseNetworkAddress(fullAddr.Host)
+	if err != nil {
+		return false
+	}
+	if laddrs.PortRangeSize() != 1 {
+		return false // TODO: support port ranges
+	}
+
+	for _, lnAddr := range s.Listen {
+		thisAddrs, err := caddy.ParseNetworkAddress(lnAddr)
+		if err != nil {
+			continue
+		}
+		if thisAddrs.Network != laddrs.Network {
+			continue
+		}
+
+		if (laddrs.StartPort <= thisAddrs.EndPort) &&
+			(laddrs.StartPort >= thisAddrs.StartPort) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Subscribe) prepareRequest(method string, rawURL string, body io.Reader, header nats.Header) (*http.Request, error) {
