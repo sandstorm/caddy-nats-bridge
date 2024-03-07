@@ -8,41 +8,47 @@
 > tl;dr: Pick whichever works for you - Open Source rocks :)
 
 `caddy-nats-bridge` is a caddy module that allows the caddy server to interact with a
-[NATS](https://nats.io/) server. This extension supports multiple patterns:
-publish/subscribe, fan in/out, and request reply.
+[NATS](https://nats.io/) server in meaningful ways.
 
-The purpose of this project is to better bridge HTTP based services with NATS
+**Main Features**:
+
+- Connect NATS and HTTP in all possible directions (we call this **Bridging**)
+- experimental: offload large HTTP bodies to JetStream
+- NEW in 0.7: publish Caddy Log messages to NATS
+
+The initial of this project was to better bridge HTTP based services with NATS
 in a pragmatic and straightforward way. If you've been wanting to use NATS, but
 have some use cases that still need to use HTTP, this may be a really good
-option for you.
+option for you. 
+
+This extension supports multiple patterns:
+publish/subscribe, fan in/out, and request reply.
+
+Additionally, this extension supports using NATS as Log output.
 
 <!-- TOC -->
-- [Caddy-NATS-Bridge](#caddy-nats-bridge)
-  - [Concept Overview](#concept-overview)
-  - [Installation](#installation)
-  - [Getting Started](#getting-started)
-  - [Connecting to NATS](#connecting-to-nats)
-  - [NATS -\> HTTP via `subscribe`](#nats---http-via-subscribe)
-    - [Placeholders for `subscribe`](#placeholders-for-subscribe)
-    - [Queue Groups](#queue-groups)
-  - [HTTP -\> NATS via `nats_request` (interested about response)](#http---nats-via-nats_request-interested-about-response)
-    - [Placeholders for `nats_request`](#placeholders-for-nats_request)
-    - [Extra headers for `nats_request`](#extra-headers-for-nats_request)
-  - [HTTP -\> NATS via `nats_publish` (fire-and-forget)](#http---nats-via-nats_publish-fire-and-forget)
-    - [Placeholders for `nats_publish`](#placeholders-for-nats_publish)
-    - [Extra headers for `nats_publish`](#extra-headers-for-nats_publish)
-  - [large HTTP payloads with store\_body\_to\_jetstream](#large-http-payloads-with-store_body_to_jetstream)
-  - [Development](#development)
+* [Caddy-NATS-Bridge](#caddy-nats-bridge)
+* [Installation](#installation)
+* [Getting Started - NATS as Log Output](#getting-started---nats-as-log-output)
+* [Getting Started - Bridging HTTP <-> NATS](#getting-started---bridging-http---nats)
+* [Connecting to NATS](#connecting-to-nats)
+* [Logging to NATS](#logging-to-nats)
+* [Bridging HTTP <-> NATS](#bridging-http---nats)
+  * [NATS -> HTTP via `subscribe`](#nats---http-via-subscribe)
+    * [Placeholders for `subscribe`](#placeholders-for-subscribe)
+    * [Queue Groups](#queue-groups)
+    * [FAQ: HTTP URL Parameters](#faq-http-url-parameters)
+  * [HTTP -> NATS via `nats_request` (interested about response)](#http---nats-via-nats_request-interested-about-response)
+    * [Placeholders for `nats_request`](#placeholders-for-nats_request)
+    * [Extra headers for `nats_request`](#extra-headers-for-nats_request)
+  * [HTTP -> NATS via `nats_publish` (fire-and-forget)](#http---nats-via-nats_publish-fire-and-forget)
+    * [Placeholders for `nats_publish`](#placeholders-for-nats_publish)
+    * [Extra headers for `nats_publish`](#extra-headers-for-nats_publish)
+  * [large HTTP payloads with store_body_to_jetstream](#large-http-payloads-with-store_body_to_jetstream)
+  * [Development](#development)
 <!-- TOC -->
 
-## Concept Overview
-
-![](./connectivity-modes.drawio.png)
-
-The module works if you want to bridge *HTTP -> NATS*, and also *NATS -> HTTP* - both in unidirectional, and in
-bidirectional mode. 
-
-## Installation
+# Installation
 
 To use `caddy-nats-bridge`, simply run the [xcaddy](https://github.com/caddyserver/xcaddy) build tool to create a
 `caddy-nats-bridge` compatible caddy server.
@@ -56,7 +62,9 @@ go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
 ~/go/bin/xcaddy build --with github.com/sandstorm/caddy-nats-bridge
 ```
 
-## Getting Started
+# Getting Started - NATS as Log Output
+
+(supported since version 0.7.0 of this extension).
 
 Getting up and running with `caddy-nats-bridge` is pretty simple:
 
@@ -66,9 +74,59 @@ First [install NATS](https://docs.nats.io/running-a-nats-service/introduction/in
 nats-server
 ```
 
+> :bulb: To try this example, `cd examples/logs; ./build-run.sh`
+>
+> - [Caddyfile](./examples/getting-started/Caddyfile)
+> - [build-run.sh](./examples/getting-started/build-run.sh)
+
+Then create and run your Caddyfile:
+
+```nginx
+# run with: ./caddy run --config Caddyfile
+
+{
+	nats {
+		url 127.0.0.1:4222
+		clientName "My Caddy Server"
+	}
+}
+
+http://127.0.0.1:8888 {
+	log {
+		output nats my.log.subject
+	}
+	respond "Hello World"
+}
+```
+
+Then, you can can listen to `my.log` with the `nats` CLI, and do a HTTP Request to see it in the Logs:
+
+```bash
+nats subscribe 'my.log.>'
+
+# in another console
+curl http://127.0.0.1:8888
+```
+
+What has happened here?
+
+1. You sent a HTTP request to Caddy
+2. the access log is routed to NATS.
+
+
+# Getting Started - Bridging HTTP <-> NATS
+
+This is a more advanced scenario, but still getting up and running with `caddy-nats-bridge` is pretty simple:
+
+First [install NATS](https://docs.nats.io/running-a-nats-service/introduction/installation) and make sure the NATS server is running:
+
+```sh
+nats-server
+```
+
 
 > :bulb: To try this example, `cd examples/getting-started; ./build-run.sh`
-> 
+>
 > - [Caddyfile](./examples/getting-started/Caddyfile)
 > - [build-run.sh](./examples/getting-started/build-run.sh)
 
@@ -137,7 +195,7 @@ Because of the `nats_request` rule in the `Caddyfile` above, you can also reques
 2. This has been forwarded to the NATS topic `cli.weather.Dresden`, which is responded by the `nats reply` tool above.
 3. The NATS response is converted to a HTTP response.
 
-## Connecting to NATS
+# Connecting to NATS
 
 To connect to `nats`, use the `nats` global option in your Caddyfile with the URL of the NATS server:
 
@@ -186,6 +244,51 @@ Configuration with all configuration options is specified below:
   }
 }
 ```
+
+# Logging to NATS
+
+Simple usage:
+
+```
+{
+  nats {
+    url nats://127.0.0.1:4222
+  }
+}
+
+my-domain.com {
+  # will use the "default" NATS server defined above
+  log nats my.log.subject
+}
+```
+
+You can also specify the NATS server alias to use for logging; in the example below "myNatsServer":
+
+```
+{
+nats {
+    url nats://127.0.0.1:4222
+  }
+  nats myNatsServer {
+    url nats://127.0.0.1:5444
+  }
+}
+
+my-domain.com {
+  # will use the "myNatsServer" NATS server defined above
+  log nats myNatsServer my.log.subject
+}
+```
+
+This concept is fully pluggable; you can configure the log output any way you like in Caddy.
+
+# Bridging HTTP <-> NATS
+
+![](./connectivity-modes.drawio.png)
+
+The module works if you want to bridge *HTTP -> NATS*, and also *NATS -> HTTP* - both in unidirectional, and in
+bidirectional mode.
+
 
 ## NATS -> HTTP via `subscribe`
 

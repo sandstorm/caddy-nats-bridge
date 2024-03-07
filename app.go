@@ -4,6 +4,7 @@ import (
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/sandstorm/caddy-nats-bridge/body_jetstream"
+	"github.com/sandstorm/caddy-nats-bridge/logoutput"
 	"github.com/sandstorm/caddy-nats-bridge/natsbridge"
 	"github.com/sandstorm/caddy-nats-bridge/publish"
 	"github.com/sandstorm/caddy-nats-bridge/request"
@@ -24,4 +25,7 @@ func init() {
 	// store request body to Jetstream
 	caddy.RegisterModule(body_jetstream.StoreBodyToJetStream{})
 	httpcaddyfile.RegisterHandlerDirective("store_body_to_jetstream", body_jetstream.ParseStoreBodyToJetstream)
+
+	// logging output to NATS
+	caddy.RegisterModule(logoutput.LogOutput{})
 }

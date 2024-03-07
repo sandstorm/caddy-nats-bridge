@@ -1,0 +1,15 @@
+# run with: ./caddy run --config Caddyfile
+
+{
+	nats {
+		url 127.0.0.1:4222
+		clientName "My Caddy Server"
+	}
+}
+
+http://127.0.0.1:8888 {
+	log {
+		output nats my.log.subject
+	}
+	respond "Hello World"
+}
