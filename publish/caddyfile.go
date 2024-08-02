@@ -1,6 +1,8 @@
 package publish
 
 import (
+	"strconv"
+
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
@@ -31,6 +33,17 @@ func (p *Publish) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 		for d.NextBlock(0) {
 			switch d.Val() {
+			case "headers":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				h, err := strconv.ParseBool(d.Val())
+				if err != nil {
+					return d.Err("headers is not a boolean")
+				}
+
+				p.Headers = h
+
 			default:
 				return d.Errf("unrecognized subdirective: %s", d.Val())
 			}

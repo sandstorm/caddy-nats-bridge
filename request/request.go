@@ -2,6 +2,9 @@ package request
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
@@ -9,13 +12,12 @@ import (
 	"github.com/sandstorm/caddy-nats-bridge/common"
 	"github.com/sandstorm/caddy-nats-bridge/natsbridge"
 	"go.uber.org/zap"
-	"net/http"
-	"time"
 )
 
 type Request struct {
 	Subject     string        `json:"subject,omitempty"`
 	Timeout     time.Duration `json:"timeout,omitempty"`
+	Headers     bool          `json:"Headers,omitempty"`
 	ServerAlias string        `json:"serverAlias,omitempty"`
 
 	logger *zap.Logger
@@ -29,6 +31,7 @@ func (Request) CaddyModule() caddy.ModuleInfo {
 			// Default values
 			return &Request{
 				Timeout:     1 * time.Second,
+				Headers:     false,
 				ServerAlias: "default",
 			}
 		},
@@ -63,7 +66,7 @@ func (p Request) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		return fmt.Errorf("NATS server alias %s not found", p.ServerAlias)
 	}
 
-	msg, err := common.NatsMsgForHttpRequest(r, subj)
+	msg, err := common.NatsMsgForHttpRequest(r, subj, p.Headers)
 	if err != nil {
 		return err
 	}
