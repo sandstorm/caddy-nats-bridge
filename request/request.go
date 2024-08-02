@@ -31,7 +31,7 @@ func (Request) CaddyModule() caddy.ModuleInfo {
 			// Default values
 			return &Request{
 				Timeout:     1 * time.Second,
-				Headers:     false,
+				Headers:     true,
 				ServerAlias: "default",
 			}
 		},

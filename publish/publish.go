@@ -28,7 +28,7 @@ func (Publish) CaddyModule() caddy.ModuleInfo {
 			// Default values
 			return &Publish{
 				ServerAlias: "default",
-				Headers:     false,
+				Headers:     true,
 			}
 		},
 	}

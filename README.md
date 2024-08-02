@@ -438,7 +438,7 @@ Additionally, the following placeholders are available:
 
 (same as for `nats_publish`)
 
-If the subdirective 'headers' is set to true, then all HTTP headers will become NATS Message headers. On top if this, the following headers are automatically set:
+If the subdirective 'headers' is set to true (default), then all HTTP headers will become NATS Message headers. On top if this, the following headers are automatically set:
 
 - `X-NatsBridge-Method` header: contains the HTTP header `GET,POST,HEAD,...`
 - `X-NatsBridge-UrlPath` header: URI path without query string
@@ -512,7 +512,7 @@ Additionally, the following placeholders are available:
 
 (same as for `nats_request`)
 
-If the subdirective 'headers' is set to true, then all HTTP headers will become NATS Message headers. On top if this, the following headers are automatically set:
+If the subdirective 'headers' is set to true (default), then all HTTP headers will become NATS Message headers. On top if this, the following headers are automatically set:
 
 - `X-NatsBridge-Method` header: contains the HTTP header `GET,POST,HEAD,...`
 - `X-NatsBridge-UrlPath` header: URI path without query string
