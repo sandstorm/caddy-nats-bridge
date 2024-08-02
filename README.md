@@ -375,6 +375,7 @@ This way, the NATS request header `X-NatsBridge-UrlQuery` can be used to set URL
 ```nginx
 nats_request [matcher] [serverAlias] subject {
   [timeout 42ms]
+  [headers true|false]
 }
 ```
 
@@ -383,8 +384,8 @@ sends the NATS reply back as HTTP response. It is a terminal handler,
 meaning it does not make sense to place Caddy handlers after this one because
 they will never be called.
 
-HTTP request headers are converted to NATS headers. NATS reply headers are converted
-to HTTP response headers.
+HTTP request headers are converted to NATS headers if the headers subdirective is set to true. 
+NATS reply headers are converted to HTTP response headers.
 
 For `matcher`, all registered [Caddy request matchers](https://caddyserver.com/docs/json/apps/http/servers/routes/match/)
 can be used - and the `nats_request` handler is only triggered if the request matches the matcher. 
@@ -437,20 +438,20 @@ Additionally, the following placeholders are available:
 
 (same as for `nats_publish`)
 
-All HTTP headers will become NATS Message headers. On top if this, the following headers are automatically set:
+If the subdirective 'headers' is set to true (default), then all HTTP headers will become NATS Message headers. On top if this, the following headers are automatically set:
 
 - `X-NatsBridge-Method` header: contains the HTTP header `GET,POST,HEAD,...`
 - `X-NatsBridge-UrlPath` header: URI path without query string
 - `X-NatsBridge-UrlQuery` header: encoded query values, without `?`
-
-> We might want to support setting arbitrary headers later :) (from Caddy expressions). Create an issue if you need this :) 
 
 
 ---
 ## HTTP -> NATS via `nats_publish` (fire-and-forget)
 
 ```nginx
-nats_publish [matcher] [serverAlias] subject
+nats_publish [matcher] [serverAlias] subject {
+  [headers true|false]
+}
 ```
 
 `nats_publish` publishes the HTTP request to the specified NATS subject. This
@@ -511,13 +512,11 @@ Additionally, the following placeholders are available:
 
 (same as for `nats_request`)
 
-All HTTP headers will become NATS Message headers. On top if this, the following headers are automatically set:
+If the subdirective 'headers' is set to true (default), then all HTTP headers will become NATS Message headers. On top if this, the following headers are automatically set:
 
 - `X-NatsBridge-Method` header: contains the HTTP header `GET,POST,HEAD,...`
 - `X-NatsBridge-UrlPath` header: URI path without query string
 - `X-NatsBridge-UrlQuery` header: encoded query values, without `?`
-
-> We might want to support setting arbitrary headers later :) (from Caddy expressions). Create an issue if you need this :)
 
 
 ---
