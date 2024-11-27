@@ -45,7 +45,9 @@ localhost {
 					],
 					"logs": {
 						"logger_names": {
-							"localhost": "log0"
+							"localhost": [
+								"log0"
+							]
 						}
 					}
 				}
