@@ -221,7 +221,7 @@ func TestSubscribeRequestToNats(t *testing.T) {
 	}
 
 	// we share the same NATS Server and Caddy Server for all testcases
-	_, nc := integrationtest.StartTestNats(t)
+	tn := integrationtest.StartTestNats(t)
 	caddyTester := integrationtest.NewCaddyTester(t)
 
 	for _, testcase := range cases {
@@ -247,7 +247,7 @@ func TestSubscribeRequestToNats(t *testing.T) {
 			// send the actual NATS request
 			natsResultChan := make(chan error)
 			go func() {
-				natsResultChan <- testcase.sendNatsRequest(nc)
+				natsResultChan <- testcase.sendNatsRequest(tn.ClientConn)
 			}()
 
 			// wait until both NATS and HTTP goroutines are finished;

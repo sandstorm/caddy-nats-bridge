@@ -6,11 +6,11 @@ import (
 )
 
 // TestNats tries to experiment with NATS request / reply in a testcase.
-func TestNats(t *testing.T) {
-	_, nc := StartTestNats(t)
+func TestNatsExample(t *testing.T) {
+	tn := StartTestNats(t)
 
-	sub, _ := nc.SubscribeSync("greet.*")
-	nc.Publish("greet.joe", []byte("hello"))
+	sub, _ := tn.ClientConn.SubscribeSync("greet.*")
+	tn.ClientConn.Publish("greet.joe", []byte("hello"))
 	msg, err := sub.NextMsg(10 * time.Millisecond)
 
 	if err != nil {

@@ -127,13 +127,13 @@ func TestRequestToNats(t *testing.T) {
 	}
 
 	// we share the same NATS Server and Caddy Server for all testcases
-	_, nc := integrationtest.StartTestNats(t)
+	tn := integrationtest.StartTestNats(t)
 	caddyTester := integrationtest.NewCaddyTester(t)
 
 	for _, testcase := range cases {
 		t.Run(testcase.description, func(t *testing.T) {
 
-			subscription, err := nc.SubscribeSync("greet.>")
+			subscription, err := tn.ClientConn.SubscribeSync("greet.>")
 			defer subscription.Unsubscribe()
 			integrationtest.FailOnErr("error subscribing to greet.>: %w", err, t)
 
@@ -156,7 +156,7 @@ func TestRequestToNats(t *testing.T) {
 			} else {
 				t.Logf("Received message: %+v", msg)
 			}
-			err = testcase.handleNatsMessage(msg, nc)
+			err = testcase.handleNatsMessage(msg, tn.ClientConn)
 			if err != nil {
 				t.Fatalf("error with NATS message: %s", err)
 			}

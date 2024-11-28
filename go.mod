@@ -8,7 +8,7 @@ toolchain go1.23.3
 
 require (
 	github.com/caddyserver/caddy/v2 v2.8.4
-	github.com/nats-io/nats.go v1.33.1
+	github.com/nats-io/nats.go v1.37.0
 	github.com/nats-io/nuid v1.0.1
 	go.uber.org/zap v1.27.0
 )

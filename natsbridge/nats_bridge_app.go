@@ -99,6 +99,16 @@ func (app *NatsBridgeApp) Start() error {
 			opts = append(opts, opt)
 		}
 
+		// we retry forever
+		opts = append(opts, nats.MaxReconnects(-1))
+		opts = append(opts, nats.DisconnectErrHandler(func(conn *nats.Conn, err error) {
+			app.logger.Info("NATS disconnected")
+		}))
+		opts = append(opts, nats.RetryOnFailedConnect(true))
+		opts = append(opts, nats.ReconnectHandler(func(conn *nats.Conn) {
+			app.logger.Info("NATS reconnected")
+		}))
+
 		server.Conn, err = nats.Connect(server.NatsUrl, opts...)
 		if err != nil {
 			return fmt.Errorf("could not connect to %s : %w", server.NatsUrl, err)
@@ -118,12 +128,8 @@ func (app *NatsBridgeApp) Start() error {
 }
 
 func (app *NatsBridgeApp) Stop() error {
-	defer func() {
-		for _, server := range app.Servers {
-			app.logger.Info("closing NATS connection", zap.String("url", server.Conn.ConnectedUrlRedacted()))
-			server.Conn.Close()
-		}
-	}()
+	// we do NOT close the connections from NATS server, as otherwise we'd disconnect
+	// on a reload of the Caddy server.
 
 	app.logger.Info("stopping all NATS subscriptions")
 	for _, server := range app.Servers {

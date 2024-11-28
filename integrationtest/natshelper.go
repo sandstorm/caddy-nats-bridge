@@ -10,11 +10,21 @@ import (
 
 const TEST_PORT = 8369
 
-func StartTestNats(t *testing.T) (*server.Server, *nats.Conn) {
-	natsServer := RunServerOnPort(TEST_PORT)
-	t.Cleanup(func() {
-		natsServer.Shutdown()
-	})
+type TestNats struct {
+	Server     *server.Server
+	ClientConn *nats.Conn
+}
+
+func (tn *TestNats) RestartServer(t *testing.T) {
+	t.Logf("Shutting down NATS Server")
+	tn.Server.Shutdown()
+	t.Logf("Starting NATS Server")
+	tn.Server = runServerOnPort(TEST_PORT)
+	t.Logf("Started NATS Server")
+}
+
+func StartTestNats(t *testing.T) TestNats {
+	natsServer := runServerOnPort(TEST_PORT)
 
 	serverUrl := fmt.Sprintf("nats://127.0.0.1:%d", TEST_PORT)
 	natsClient, err := nats.Connect(serverUrl)
@@ -25,19 +35,25 @@ func StartTestNats(t *testing.T) (*server.Server, *nats.Conn) {
 		natsClient.Drain()
 	})
 
-	return natsServer, natsClient
+	tn := TestNats{
+		Server:     natsServer,
+		ClientConn: natsClient,
+	}
+
+	t.Cleanup(func() {
+		tn.Server.Shutdown()
+	})
+
+	return tn
 }
 
-func RunServerOnPort(port int) *server.Server {
+func runServerOnPort(port int) *server.Server {
 	opts := natsserver.DefaultTestOptions
 	opts.Port = port
 	opts.JetStream = true
 	opts.Debug = true
 	opts.Trace = true
 	opts.NoLog = false
-	return RunServerWithOptions(&opts)
-}
 
-func RunServerWithOptions(opts *server.Options) *server.Server {
-	return natsserver.RunServer(opts)
+	return natsserver.RunServer(&opts)
 }
