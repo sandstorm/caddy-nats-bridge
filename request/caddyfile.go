@@ -1,16 +1,19 @@
 package request
 
 import (
+	"strconv"
+	"time"
+
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
-	"time"
 )
 
 // ParseRequestHandler parses the nats_request directive. Syntax:
 //
 //	nats_request [serverAlias] subject {
 //	    [timeout 1s]
+//      [headers true|false]
 //	}
 func ParseRequestHandler(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
 	var p = Request{}
@@ -42,6 +45,18 @@ func (p *Request) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				}
 
 				p.Timeout = t
+
+			case "headers":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				h, err := strconv.ParseBool(d.Val())
+				if err != nil {
+					return d.Err("headers is not a boolean")
+				}
+
+				p.Headers = h
+
 			default:
 				return d.Errf("unrecognized subdirective: %s", d.Val())
 			}

@@ -2,18 +2,20 @@ package publish
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/sandstorm/caddy-nats-bridge/common"
 	"github.com/sandstorm/caddy-nats-bridge/natsbridge"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type Publish struct {
 	Subject     string `json:"subject,omitempty"`
 	ServerAlias string `json:"serverAlias,omitempty"`
+	Headers     bool   `json:"headers,omitempty"`
 
 	logger *zap.Logger
 	app    *natsbridge.NatsBridgeApp
@@ -26,6 +28,7 @@ func (Publish) CaddyModule() caddy.ModuleInfo {
 			// Default values
 			return &Publish{
 				ServerAlias: "default",
+				Headers:     true,
 			}
 		},
 	}
@@ -58,7 +61,7 @@ func (p Publish) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		return fmt.Errorf("NATS server alias %s not found", p.ServerAlias)
 	}
 
-	msg, err := common.NatsMsgForHttpRequest(r, subj)
+	msg, err := common.NatsMsgForHttpRequest(r, subj, p.Headers)
 	if err != nil {
 		return err
 	}
